@@ -1,0 +1,19 @@
+# Custom cell library for ABC technology mapping.
+# This is the small file that tells ABC: "please map the circuit using IMPLY."
+# It follows the SIMPLER/Ben-Hur 2020 flow, but swaps the NOR target for IMPLY.
+#
+# IMPLY(a, b) = !a + b   (material implication, the only compute primitive)
+# INV is kept as a pseudo-gate while ABC is mapping. The sequencer later turns
+# NOT x into:
+#     FALSE work_cell
+#     IMPLY x -> work_cell
+# so INV gets area 2, not 1.
+#
+# The PIN numbers are mostly legal-looking placeholders. This project uses
+# ABC's area mapper, not its timing model, so the area field above is the part
+# that matters for this experiment.
+
+GATE IMPLY  1  O=!a+b;     PIN * UNKNOWN 1 999 1 0 1 0
+GATE INV    2  O=!a;       PIN * UNKNOWN 1 999 1 0 1 0
+GATE ZERO   0  O=CONST0;
+GATE ONE    0  O=CONST1;
