@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Pipeline: Verilog --yosys--> BLIF --ABC(+imply.genlib)--> IMPLY-only netlist
+# Pipeline: Verilog --yosys--> BLIF --ABC(+abc_imply.genlib)--> adapter netlist
 # (the SIMPLER/Ben-Hur 2020 Fig.5 idea, but with NOR replaced by IMPLY)
 #
 # I keep three ABC scripts here because one script does not win on every small
 # circuit. The rough cost is IMPLY + 2*INV, since an INV later becomes
-# FALSE+IMPLY in the sequencer.
+# ZERO+IMPLY in the primitive dependency graph.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -31,10 +31,10 @@ for v in circuits/*.v; do
   # Stage 1: yosys lowers Verilog to a generic BLIF file.
   yosys -q -p "read_verilog $v; hierarchy -auto-top; flatten; proc; opt; techmap; opt; write_blif pre/$name.blif"
 
-  # Stage 2: ABC maps that BLIF into the custom IMPLY/INV library.
+  # Stage 2: ABC maps that BLIF into the adapter IMPLY/INV library.
   best_cost=999999; best_idx=0
   for idx in "${!SCRIPTS[@]}"; do
-    "$ABC" -c "read_blif pre/$name.blif; read_genlib imply.genlib; ${SCRIPTS[$idx]}; write_blif out/.$name.$idx.blif" >/dev/null
+    "$ABC" -c "read_blif pre/$name.blif; read_genlib abc_imply.genlib; ${SCRIPTS[$idx]}; write_blif out/.$name.$idx.blif" >/dev/null
     c=$(cost_of "out/.$name.$idx.blif")
     if [ "$c" -lt "$best_cost" ]; then best_cost=$c; best_idx=$idx; fi
   done

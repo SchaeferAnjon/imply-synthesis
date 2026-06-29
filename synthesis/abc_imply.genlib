@@ -1,0 +1,11 @@
+# Adapter library for ABC technology mapping.
+#
+# ABC's mapper expects helper cells such as an inverter to exist in the genlib.
+# The project-facing primitive library is imply.genlib (ZERO + IMPLY only).
+# compile.py expands every helper gate from this adapter into a primitive
+# dependency graph before pulse sequencing.
+
+GATE IMPLY  1  O=!a+b;     PIN * UNKNOWN 1 999 1 0 1 0
+GATE INV    2  O=!a;       PIN * UNKNOWN 1 999 1 0 1 0
+GATE ZERO   0  O=CONST0;
+GATE ONE    0  O=CONST1;

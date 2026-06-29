@@ -8,10 +8,13 @@ This is the file I use for demos. It runs the same front end as run_synth.sh,
 but only for one input circuit, and then asks ABC `cec` to check equivalence at
 two points. That avoids pretending that exhaustive simulation scales forever.
 
-    input --yosys--> pre.blif --ABC portfolio--> mapped.blif (IMPLY/INV only)
+    input --yosys--> pre.blif --ABC portfolio--> mapped.blif (adapter netlist)
                         |                              |
                         +======== cec (formal) ========+
-    mapped.blif --Sequencer--> program --SSA-to-BLIF--> prog_{opt,naive}.blif
+    mapped.blif --ZERO/IMPLY dependency graph--> primitive_logic.blif
+                        |                              |
+                        +======== cec (formal) ========+
+    primitive graph --Sequencer--> program --SSA-to-BLIF--> prog_{opt,naive}.blif
                         |                              |
                         +======== cec (formal) ========+
 
@@ -34,6 +37,7 @@ sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parent))
 
 from imply_sim import CrossbarRow
+from dependency_graph import build_dependency_graph, expand_to_primitives
 from sequencer import Program, Sequencer
 from verify_netlist import eval_netlist, parse_blif
 
@@ -95,7 +99,7 @@ def abc_portfolio(work: Path) -> Path:
     for i, script in enumerate(ABC_SCRIPTS):
         out = work / f"mapped_{i}.blif"
         run(["yosys-abc", "-c",
-             f"read_blif pre.blif; read_genlib imply.genlib; {script}; "
+             f"read_blif pre.blif; read_genlib abc_imply.genlib; {script}; "
              f"write_blif {out.name}"], cwd=work)
         _, _, gates = parse_blif(out)
         cost = mapping_cost(gates)
@@ -225,20 +229,30 @@ def main() -> None:
     work.mkdir(parents=True, exist_ok=True)
     (work / src.name).write_text(src.read_text())
     (work / "imply.genlib").write_text((HERE / "imply.genlib").read_text())
+    (work / "abc_imply.genlib").write_text((HERE / "abc_imply.genlib").read_text())
 
     pre = to_pre_blif(src, work)
     mapped = abc_portfolio(work)
     inputs, outputs, gates = parse_blif(mapped)
+    primitive_gates = expand_to_primitives(gates)
+    graph = build_dependency_graph(inputs, outputs, primitive_gates)
     census = {}
     for gate_type in ("IMPLY", "INV", "BUF", "ZERO", "ONE"):
         census[gate_type] = count_gates(gates, gate_type)
+    primitive_census = {}
+    for gate_type in ("IMPLY", "BUF", "ZERO"):
+        primitive_census[gate_type] = count_gates(primitive_gates, gate_type)
 
     progs = {}
-    progs["naive"] = Sequencer(optimize=False).run(inputs, outputs, gates)
-    progs["opt"] = Sequencer(optimize=True).run(inputs, outputs, gates)
+    progs["naive"] = Sequencer(optimize=False).run(inputs, outputs, primitive_gates)
+    progs["opt"] = Sequencer(optimize=True).run(inputs, outputs, primitive_gates)
 
     (work / "mapped_logic.blif").write_text(
         gates_to_blif(name, inputs, outputs, gates))
+    (work / "primitive_logic.blif").write_text(
+        gates_to_blif(name, inputs, outputs, primitive_gates))
+    (work / "dependency_graph.dot").write_text(graph.to_dot())
+    (work / "dependency_tree.txt").write_text(graph.to_tree_text() + "\n")
     for m, p in progs.items():
         (work / f"prog_{m}.blif").write_text(
             program_to_blif(name, p, inputs, outputs))
@@ -246,12 +260,14 @@ def main() -> None:
     v = {
         "abc-mapping == source (formal cec)":
             cec(work, "pre.blif", "mapped_logic.blif"),
-        "opt sequence == netlist (formal cec)":
-            cec(work, "mapped_logic.blif", "prog_opt.blif"),
-        "naive sequence == netlist (formal cec)":
-            cec(work, "mapped_logic.blif", "prog_naive.blif"),
+        "primitive graph == mapped netlist (formal cec)":
+            cec(work, "mapped_logic.blif", "primitive_logic.blif"),
+        "opt sequence == primitive graph (formal cec)":
+            cec(work, "primitive_logic.blif", "prog_opt.blif"),
+        "naive sequence == primitive graph (formal cec)":
+            cec(work, "primitive_logic.blif", "prog_naive.blif"),
     }
-    sim_ok, n_vec = sim_sanity(progs["opt"], inputs, outputs, gates)
+    sim_ok, n_vec = sim_sanity(progs["opt"], inputs, outputs, primitive_gates)
     v[f"simulator sanity ({n_vec} vectors)"] = sim_ok
 
     opt = progs["opt"]
@@ -270,12 +286,17 @@ def main() -> None:
     seq_path.write_text("\n".join(lines) + "\n")
 
     print(f"circuit : {name}  ({len(inputs)} inputs, {len(outputs)} outputs)")
-    netlist_line = f"netlist : {census['IMPLY']} IMPLY + {census['INV']} INV"
+    netlist_line = f"abc map : {census['IMPLY']} IMPLY + {census['INV']} INV"
     if census["BUF"]:
         netlist_line += f" + {census['BUF']} BUF"
     if census["ZERO"] + census["ONE"]:
         netlist_line += " + consts"
     print(netlist_line)
+    graph_line = (f"graph   : {primitive_census['IMPLY']} IMPLY + "
+                  f"{primitive_census['ZERO']} ZERO")
+    if primitive_census["BUF"]:
+        graph_line += f" + {primitive_census['BUF']} BUF"
+    print(graph_line)
     print(f"steps   : naive {progs['naive'].steps}  ->  opt {opt.steps}"
           f"   (cells {opt.n_cells})")
     for k, ok in v.items():

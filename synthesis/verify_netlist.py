@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Verify ABC-mapped IMPLY netlists against small Python golden models.
+"""Verify ABC adapter netlists against small Python golden models.
 
 For every out/<name>.blif: parse the .gate netlist (IMPLY / INV / ZERO / ONE),
 evaluate it exhaustively over all input combinations, and compare with the
 golden model. Also report gate census and a serial step estimate
-(IMPLY = 1 step, INV = 2 steps: FALSE + IMPLY). This is a front-end check;
-the exact pulse program comes from sequencer.py or compile.py.
+(IMPLY = 1 step, INV = 2 steps: ZERO + IMPLY). This is a front-end check;
+the primitive dependency graph and exact pulse program come from compile.py.
 """
 from itertools import product
 from pathlib import Path
@@ -233,8 +233,9 @@ def main():
     print("-" * 39)
     for r in rows:
         print(f"{r[0]:<12}{r[1]:>6}{r[2]:>5}{r[3]:>8}{r[4]:>8}")
-    print("\n~steps = IMPLY + 2*INV (INV lowers to FALSE+IMPLY); "
-          "exact count comes from compile.py / sequencer.py.")
+    print("\n~steps = IMPLY + 2*INV (INV lowers to ZERO+IMPLY; "
+          "ZERO becomes FALSE in the pulse sequence); exact count comes "
+          "from compile.py / sequencer.py.")
     failed = False
     for row in rows:
         if row[4] != "OK":

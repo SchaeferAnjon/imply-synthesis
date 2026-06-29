@@ -18,36 +18,39 @@ Supervisor: Fabian Seiler
 Verilog / BLIF / BENCH
   -> Yosys
   -> generic BLIF
-  -> ABC with synthesis/imply.genlib
-  -> IMPLY/INV netlist
+  -> ABC with synthesis/abc_imply.genlib
+  -> adapter IMPLY/INV netlist
+  -> ZERO/IMPLY dependency graph
   -> synthesis/sequencer.py
   -> IMPLY/FALSE sequence
   -> simulator sanity check
   -> ABC cec equivalence checks
 ```
 
-The custom ABC library is very small:
+The project-facing primitive library is intentionally small:
 
 ```genlib
 GATE IMPLY  1  O=!a+b;
-GATE INV    2  O=!a;
 GATE ZERO   0  O=CONST0;
-GATE ONE    0  O=CONST1;
 ```
 
-ABC is allowed to use `INV` during mapping because it helps produce cleaner
-logic. The sequencer later lowers each `INV` to `FALSE + IMPLY`, so the public
-program still uses only the two operations required by the project.
+ABC's mapper currently expects helper cells such as `INV`, so the code uses
+`synthesis/abc_imply.genlib` as a tool adapter. Immediately after mapping,
+`compile.py` expands every helper back into a primitive dependency graph:
+`INV x` becomes `ZERO z; IMPLY x z`. The final graph and pulse program therefore
+use only the operations required by the project: `FALSE/CONST0` and `IMPLY`.
 
 ## files
 
 | path | role |
 |---|---|
 | `imply_sim.py` | logic-level simulator for one crossbar row |
-| `synthesis/imply.genlib` | ABC cell library for IMPLY mapping |
+| `synthesis/imply.genlib` | project primitive library: `ZERO` + `IMPLY` |
+| `synthesis/abc_imply.genlib` | ABC adapter library used before primitive expansion |
+| `synthesis/dependency_graph.py` | expands helper gates and writes dependency tree/DOT views |
 | `synthesis/run_synth.sh` | batch front end for the small Verilog examples |
 | `synthesis/verify_netlist.py` | checks mapped netlists against Python golden models |
-| `synthesis/sequencer.py` | lowers IMPLY/INV netlists to pulse programs |
+| `synthesis/sequencer.py` | lowers primitive dependency graphs to pulse programs |
 | `synthesis/compile.py` | one-circuit demo flow with ABC `cec` checks |
 | `synthesis/circuits/` | small Verilog inputs |
 | `synthesis/demo/` | extra demo inputs for `compile.py` |
@@ -77,6 +80,13 @@ IMPLY 0 -> 1
 
 If input `a` is in cell `0`, resetting cell `1` and then applying
 `IMPLY 0 -> 1` stores `NOT a` in cell `1`.
+
+For `full_adder.v`, `compile.py` also writes:
+
+- `compiled/full_adder/dependency_tree.txt`
+- `compiled/full_adder/dependency_graph.dot`
+
+These files show the explicit primitive graph used by the sequencer.
 
 ## local toolchain
 
