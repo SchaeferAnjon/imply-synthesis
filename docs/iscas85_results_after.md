@@ -1,6 +1,6 @@
 # ISCAS'85 Compile Results
 
-Source directory: `/tmp/iscas85-benchmarks/ISCAS85`
+Source directory: `synthesis/circuits/ISCAS85`
 
 | circuit | inputs | outputs | naive steps | opt steps | cells | status |
 |---|---:|---:|---:|---:|---:|---|
