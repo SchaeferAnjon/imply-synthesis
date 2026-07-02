@@ -74,6 +74,20 @@ def test_negation_cache_second_inv_is_free() -> None:
     assert double.out_cell["n1"] == double.out_cell["n2"]  # same cell alias
 
 
+def test_primitive_zero_imply_inverse_uses_reverse_alias() -> None:
+    gates = [
+        ("ZERO", {"O": "z0"}),
+        ("IMPLY", {"a": "a", "b": "z0", "O": "not_a"}),
+        ("ZERO", {"O": "z1"}),
+        ("IMPLY", {"a": "not_a", "b": "z1", "O": "a_again"}),
+    ]
+
+    prog: Program = Sequencer(optimize=True).run(["a"], ["a_again"], gates)
+
+    assert prog.steps == 2
+    assert prog.out_cell["a_again"] == prog.in_cell["a"]
+
+
 # ------------------------------------------------------ destructive target
 def test_destructive_target_single_imply_in_place() -> None:
     prog: Program = Sequencer(optimize=True).run(

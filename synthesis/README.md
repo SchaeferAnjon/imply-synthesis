@@ -2,8 +2,9 @@
 
 This folder contains the current Boolean-to-IMPLY flow. The public version is
 kept narrow on purpose: it shows the mapping setup, the netlist checker, the
-sequencer, and the one-circuit `compile.py` demo. The larger evaluation scripts
-are still local until I have discussed them.
+sequencer, the one-circuit `compile.py` demo, and a reproducible ISCAS'85
+runner for the latest scheduling discussion. The random-circuit, ATOMIC, and
+robustness evaluation scripts are still local until I have discussed them.
 
 ## files
 
@@ -13,6 +14,7 @@ are still local until I have discussed them.
 | `abc_imply.genlib` | ABC adapter library: `IMPLY` plus temporary mapping helpers |
 | `dependency_graph.py` | expands helpers into a primitive dependency graph and exports tree/DOT views |
 | `run_synth.sh` | runs Yosys and ABC for every circuit in `circuits/` |
+| `run_iscas85.py` | runs `compile.py` over an external ISCAS'85 Verilog directory |
 | `verify_netlist.py` | checks ABC output against small Python golden models |
 | `sequencer.py` | turns primitive dependency graphs into `FALSE` and `IMPLY` pulses |
 | `compile.py` | one-circuit flow, including ABC `cec` equivalence checks |
@@ -57,6 +59,18 @@ x -> 0 = NOT x OR 0 = NOT x
 ```
 
 That is why `INV` has area 2 in `abc_imply.genlib`.
+
+The optimized sequencer still sees the important inversion shape inside the
+primitive graph. When it finds a single-use
+
+```text
+ZERO z
+IMPLY x z
+```
+
+it schedules that shape as a cacheable inverse while still emitting only
+`FALSE` and `IMPLY` pulses. This preserves useful aliases such as `x = NOT z`
+and avoids recomputing some later inversions.
 
 ## one-circuit demo
 
@@ -115,8 +129,11 @@ Current smoke results through `compile.py`:
 
 | circuit | adapter map | primitive graph | optimized sequence |
 |---|---:|---:|---:|
-| `full_adder` | 8 IMPLY + 4 INV | 12 IMPLY + 4 ZERO | 26 steps / 7 cells |
-| `c17` | 6 IMPLY + 4 INV | 10 IMPLY + 4 ZERO | 20 steps / 7 cells |
+| `full_adder` | 8 IMPLY + 4 INV | 12 IMPLY + 4 ZERO | 20 steps / 7 cells |
+| `c17` | 6 IMPLY + 4 INV | 10 IMPLY + 4 ZERO | 15 steps / 8 cells |
+
+For the full before/after ISCAS'85 run, see
+`../docs/sequencing_optimization_report.md`.
 
 ## current limits
 

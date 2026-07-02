@@ -73,6 +73,54 @@ def topo_order(inputs: list[str], gates: list[tuple]) -> list[tuple]:
     return ordered
 
 
+def fold_zero_imply_inverters(gates: list[tuple], outputs: list[str]) -> list[tuple]:
+    """Recognize primitive ZERO+IMPLY inversions for scheduling.
+
+    The project-facing graph still uses only ZERO and IMPLY. For scheduling,
+    however, the shape
+
+        ZERO z
+        IMPLY x, z -> y
+
+    is exactly an inverter. Folding the shape here lets the existing negation
+    cache and reverse-alias logic see it, while the emitted pulse program is
+    still only FALSE and IMPLY.
+    """
+    uses = Counter()
+    consumer = {}
+    for gate in gates:
+        typ, pins = gate
+        for pin_name, net_name in pins.items():
+            if pin_name == "O":
+                continue
+            uses[net_name] += 1
+            consumer[net_name] = gate
+
+    folded_zero: set[str] = set()
+    for typ, pins in gates:
+        if typ != "ZERO":
+            continue
+        zero_net = pins["O"]
+        if zero_net in outputs or uses[zero_net] != 1:
+            continue
+        use_gate = consumer.get(zero_net)
+        if use_gate is None:
+            continue
+        use_typ, use_pins = use_gate
+        if use_typ == "IMPLY" and use_pins["b"] == zero_net:
+            folded_zero.add(zero_net)
+
+    out = []
+    for typ, pins in gates:
+        if typ == "ZERO" and pins["O"] in folded_zero:
+            continue
+        if typ == "IMPLY" and pins["b"] in folded_zero:
+            out.append(("INV", {"a": pins["a"], "O": pins["O"]}))
+        else:
+            out.append((typ, pins))
+    return out
+
+
 @dataclass
 class _Core:
     """One emission pass over the netlist with a chosen gate-order strategy."""
@@ -123,6 +171,16 @@ class _Core:
                 result.append(n)
         return result
 
+    def live_negs(self, cell: int) -> list[str]:
+        """Return still-useful cached inverse values stored in a cell."""
+        result = []
+        for k, n in self.claims.get(cell, ()):
+            if k != "neg":
+                continue
+            if self.remaining[n] > 0 or n in self.protected:
+                result.append(n)
+        return result
+
     def dec(self, net: str) -> None:
         self.remaining[net] -= 1
         cell = self.val.get(net)
@@ -131,8 +189,9 @@ class _Core:
 
     def maybe_reclaim(self, cell: int) -> None:
         # A cell can go back to the free list only after every useful plain
-        # value in it has died. Cached negations die with the cell too.
-        if not self.optimize or cell in self.free or self.live_vals(cell):
+        # value and useful cached inverse in it has died.
+        if (not self.optimize or cell in self.free or self.live_vals(cell)
+                or self.live_negs(cell)):
             return
         for k, n in list(self.claims.get(cell, ())):
             if k == "val" and self.val.get(n) == cell:
@@ -280,6 +339,8 @@ class _Core:
 
     def run(self, inputs: list[str], outputs: list[str],
             gates: list[tuple]) -> Program:
+        if self.optimize:
+            gates = fold_zero_imply_inverters(gates, outputs)
         self.protected = set(outputs)
         # remaining tells us whether overwriting a net is safe. It is the small
         # bit of bookkeeping that keeps IMPLY's destructive target sane.

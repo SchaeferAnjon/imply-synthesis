@@ -235,7 +235,8 @@ def main() -> None:
     mapped = abc_portfolio(work)
     inputs, outputs, gates = parse_blif(mapped)
     primitive_gates = expand_to_primitives(gates)
-    graph = build_dependency_graph(inputs, outputs, primitive_gates)
+    adapter_graph = build_dependency_graph(inputs, outputs, gates)
+    primitive_graph = build_dependency_graph(inputs, outputs, primitive_gates)
     census = {}
     for gate_type in ("IMPLY", "INV", "BUF", "ZERO", "ONE"):
         census[gate_type] = count_gates(gates, gate_type)
@@ -251,8 +252,11 @@ def main() -> None:
         gates_to_blif(name, inputs, outputs, gates))
     (work / "primitive_logic.blif").write_text(
         gates_to_blif(name, inputs, outputs, primitive_gates))
-    (work / "dependency_graph.dot").write_text(graph.to_dot())
-    (work / "dependency_tree.txt").write_text(graph.to_tree_text() + "\n")
+    (work / "dependency_graph.dot").write_text(adapter_graph.to_dot())
+    (work / "dependency_tree.txt").write_text(adapter_graph.to_tree_text() + "\n")
+    (work / "primitive_dependency_graph.dot").write_text(primitive_graph.to_dot())
+    (work / "primitive_dependency_tree.txt").write_text(
+        primitive_graph.to_tree_text() + "\n")
     for m, p in progs.items():
         (work / f"prog_{m}.blif").write_text(
             program_to_blif(name, p, inputs, outputs))
@@ -292,7 +296,7 @@ def main() -> None:
     if census["ZERO"] + census["ONE"]:
         netlist_line += " + consts"
     print(netlist_line)
-    graph_line = (f"graph   : {primitive_census['IMPLY']} IMPLY + "
+    graph_line = (f"primitive: {primitive_census['IMPLY']} IMPLY + "
                   f"{primitive_census['ZERO']} ZERO")
     if primitive_census["BUF"]:
         graph_line += f" + {primitive_census['BUF']} BUF"

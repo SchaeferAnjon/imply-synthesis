@@ -10,13 +10,14 @@ Models a single row of a memristor crossbar at the logic level:
     false_reset([...])   # parallel reset, counts as ONE step
 """
 
+from dataclasses import dataclass, field
+
+
+@dataclass
 class CrossbarRow:
-    def __init__(self, cells=None):
-        if cells is None:
-            cells = []
-        self.cells = list(cells)
-        self.steps = 0
-        self.trace = []
+    cells: list[int] = field(default_factory=list)
+    steps: int = 0
+    trace: list[str] = field(default_factory=list)
 
     def imply(self, i_a: int, i_b: int) -> None:
         """In-place stateful IMPLY: cells[i_b] = (¬cells[i_a]) ∨ cells[i_b]."""
