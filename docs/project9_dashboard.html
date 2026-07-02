@@ -1,0 +1,1102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Project 9 IMPLY/FALSE Dashboard</title>
+  <style>
+    :root {
+      --bg: #f7f8f5;
+      --paper: #ffffff;
+      --ink: #172033;
+      --muted: #5f6b7a;
+      --line: #d9dfd4;
+      --green: #15803d;
+      --green-soft: #e7f5ea;
+      --red: #b91c1c;
+      --red-soft: #fff0ec;
+      --blue: #1f5f99;
+      --blue-soft: #e8f1fa;
+      --amber: #a16207;
+      --amber-soft: #fff7d6;
+      --code: #101827;
+      --shadow: 0 18px 50px rgba(23, 32, 51, 0.10);
+      --radius: 8px;
+      color-scheme: light;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      background:
+        linear-gradient(180deg, rgba(232, 241, 250, 0.78), rgba(247, 248, 245, 0) 430px),
+        var(--bg);
+      color: var(--ink);
+      line-height: 1.55;
+    }
+
+    a {
+      color: var(--blue);
+      text-decoration-thickness: 1px;
+      text-underline-offset: 3px;
+    }
+
+    img {
+      display: block;
+      max-width: 100%;
+      height: auto;
+    }
+
+    .page {
+      width: min(1180px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 30px 0 64px;
+    }
+
+    .hero {
+      min-height: 560px;
+      display: grid;
+      align-content: center;
+      gap: 28px;
+      padding: 24px 0 40px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .mark {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 750;
+      color: var(--ink);
+    }
+
+    .mark-dot {
+      width: 13px;
+      height: 13px;
+      flex: 0 0 13px;
+      margin-right: 32px;
+      background: var(--green);
+      box-shadow: 16px 0 0 var(--blue), 32px 0 0 var(--amber);
+    }
+
+    .nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 16px;
+      justify-content: flex-end;
+    }
+
+    .nav a {
+      color: var(--muted);
+      font-size: 0.88rem;
+      text-decoration: none;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(340px, 0.95fr);
+      gap: 28px;
+      align-items: stretch;
+    }
+
+    .hero-copy {
+      display: grid;
+      align-content: center;
+      gap: 24px;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      max-width: 820px;
+      font-size: clamp(3rem, 7vw, 6.35rem);
+      line-height: 0.94;
+      letter-spacing: 0;
+      font-weight: 820;
+    }
+
+    .lead {
+      max-width: 760px;
+      color: #354155;
+      font-size: clamp(1.05rem, 2vw, 1.35rem);
+      line-height: 1.5;
+    }
+
+    .status-line {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.74);
+      box-shadow: var(--shadow);
+    }
+
+    .status-item {
+      padding: 18px 20px;
+      border-right: 1px solid var(--line);
+    }
+
+    .status-item:last-child {
+      border-right: 0;
+    }
+
+    .status-value {
+      display: block;
+      font-size: clamp(1.7rem, 3vw, 2.45rem);
+      line-height: 1;
+      font-weight: 840;
+    }
+
+    .status-label {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .hero-panel {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      padding: 20px;
+      display: grid;
+      gap: 16px;
+      align-content: start;
+    }
+
+    .panel-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      color: var(--muted);
+      font-size: 0.86rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 760;
+    }
+
+    .pipeline-stack {
+      display: grid;
+      gap: 12px;
+    }
+
+    .pipeline-card {
+      display: grid;
+      grid-template-columns: 42px 1fr;
+      gap: 12px;
+      align-items: start;
+      border: 1px solid #e5e9df;
+      background: #fbfcf8;
+      padding: 14px;
+      border-radius: var(--radius);
+    }
+
+    .pipeline-no {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      background: var(--ink);
+      color: white;
+      font-weight: 780;
+      border-radius: 50%;
+      font-size: 0.9rem;
+    }
+
+    .pipeline-card strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 1rem;
+    }
+
+    .pipeline-card span {
+      color: var(--muted);
+      font-size: 0.93rem;
+    }
+
+    section {
+      padding: 52px 0;
+      border-top: 1px solid rgba(217, 223, 212, 0.95);
+    }
+
+    .section-head {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 22px;
+    }
+
+    h2 {
+      font-size: clamp(2rem, 4vw, 3.25rem);
+      line-height: 1;
+      letter-spacing: 0;
+      font-weight: 820;
+    }
+
+    .section-note {
+      max-width: 520px;
+      color: var(--muted);
+      font-size: 0.98rem;
+    }
+
+    .route {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .route-step {
+      min-height: 230px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 18px;
+      display: grid;
+      align-content: space-between;
+      gap: 18px;
+    }
+
+    .route-step h3 {
+      font-size: 1.18rem;
+      line-height: 1.18;
+    }
+
+    .route-step p {
+      color: var(--muted);
+      font-size: 0.94rem;
+    }
+
+    .tag {
+      display: inline-flex;
+      width: fit-content;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 9px;
+      border: 1px solid var(--line);
+      background: #f9faf6;
+      color: var(--muted);
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+
+    .tag.green {
+      color: var(--green);
+      background: var(--green-soft);
+      border-color: #bfe5c7;
+    }
+
+    .tag.blue {
+      color: var(--blue);
+      background: var(--blue-soft);
+      border-color: #bdd7ef;
+    }
+
+    .tag.red {
+      color: var(--red);
+      background: var(--red-soft);
+      border-color: #f2c3ba;
+    }
+
+    .tag.amber {
+      color: var(--amber);
+      background: var(--amber-soft);
+      border-color: #f4dd86;
+    }
+
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .metric-card {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 22px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .metric-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .metric-name {
+      font-size: 1.12rem;
+      font-weight: 790;
+    }
+
+    .before-after {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .ba-cell {
+      border: 1px solid var(--line);
+      padding: 16px;
+      border-radius: var(--radius);
+      background: #fbfcf8;
+      min-height: 112px;
+    }
+
+    .ba-cell.after {
+      border-color: #a9d7b4;
+      background: var(--green-soft);
+    }
+
+    .ba-label {
+      color: var(--muted);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 760;
+    }
+
+    .ba-value {
+      margin-top: 8px;
+      font-size: 2rem;
+      line-height: 1;
+      font-weight: 840;
+    }
+
+    .ba-detail {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    .arrow {
+      color: var(--green);
+      font-size: 1.5rem;
+      font-weight: 820;
+    }
+
+    .image-frame {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 12px;
+      overflow: hidden;
+    }
+
+    .image-frame img {
+      width: 100%;
+      background: white;
+      border: 1px solid #edf0e9;
+      border-radius: 6px;
+    }
+
+    .image-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    .visual-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .graph-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .graph-card {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .graph-card h3 {
+      font-size: 1rem;
+    }
+
+    .graph-card p {
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    .graph-card .graph-scroll {
+      height: 460px;
+      overflow: auto;
+      border: 1px solid #edf0e9;
+      border-radius: 6px;
+      background: white;
+      display: grid;
+      justify-items: center;
+      align-items: start;
+      padding: 10px;
+    }
+
+    .graph-card img {
+      width: auto;
+      max-width: none;
+      min-width: 240px;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: 0 8px 28px rgba(23, 32, 51, 0.06);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 850px;
+      font-size: 0.92rem;
+    }
+
+    th,
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid #e7ebe3;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    th {
+      background: #f2f5ee;
+      color: #3d4858;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-weight: 800;
+    }
+
+    th:first-child,
+    td:first-child {
+      text-align: left;
+      font-weight: 760;
+    }
+
+    tbody tr:hover {
+      background: #fbfcf8;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .pass {
+      color: var(--green);
+      font-weight: 820;
+    }
+
+    .delta {
+      color: var(--green);
+      font-weight: 780;
+    }
+
+    .command-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    .command-card {
+      background: var(--code);
+      color: #eef5ff;
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: 0 16px 44px rgba(16, 24, 39, 0.16);
+      min-width: 0;
+    }
+
+    .command-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 13px 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+      color: #b9c7d8;
+      font-size: 0.82rem;
+      font-weight: 750;
+    }
+
+    .copy-btn {
+      appearance: none;
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      color: white;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 6px;
+      min-height: 32px;
+      padding: 0 10px;
+      cursor: pointer;
+      font: inherit;
+      font-size: 0.78rem;
+      font-weight: 780;
+    }
+
+    .copy-btn:hover,
+    .copy-btn:focus-visible {
+      background: rgba(255, 255, 255, 0.16);
+      outline: none;
+    }
+
+    pre {
+      margin: 0;
+      padding: 16px;
+      overflow-x: hidden;
+      overflow-wrap: anywhere;
+      font-size: 0.86rem;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      tab-size: 2;
+    }
+
+    code {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    }
+
+    .questions {
+      background: #122033;
+      color: white;
+      border-radius: var(--radius);
+      padding: 28px;
+      display: grid;
+      gap: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .questions h2 {
+      color: white;
+    }
+
+    .question-list {
+      display: grid;
+      gap: 12px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .question-list li {
+      display: grid;
+      grid-template-columns: 32px 1fr;
+      gap: 12px;
+      align-items: start;
+      color: #d9e2ef;
+      font-size: 1.02rem;
+    }
+
+    .q-no {
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 50%;
+      color: white;
+      font-weight: 800;
+      font-size: 0.82rem;
+    }
+
+    .source-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .source-links a {
+      display: inline-flex;
+      align-items: center;
+      min-height: 34px;
+      padding: 0 10px;
+      border: 1px solid var(--line);
+      background: var(--paper);
+      border-radius: 6px;
+      color: var(--blue);
+      text-decoration: none;
+      font-size: 0.86rem;
+      font-weight: 740;
+    }
+
+    @media (max-width: 980px) {
+      .hero-grid,
+      .visual-grid,
+      .comparison-grid,
+      .command-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .route {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .hero {
+        min-height: auto;
+      }
+    }
+
+    @media (max-width: 680px) {
+      .page {
+        width: min(100% - 24px, 1180px);
+        padding-top: 18px;
+      }
+
+      .topbar,
+      .section-head {
+        align-items: start;
+        flex-direction: column;
+      }
+
+      h1 {
+        font-size: 3.05rem;
+      }
+
+      .status-line,
+      .route,
+      .graph-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .status-item {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .status-item:last-child {
+        border-bottom: 0;
+      }
+
+      .before-after {
+        grid-template-columns: 1fr;
+      }
+
+      .arrow {
+        transform: rotate(90deg);
+        justify-self: center;
+      }
+
+      section {
+        padding: 38px 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="hero" id="top">
+      <div class="topbar">
+        <div class="mark"><span class="mark-dot" aria-hidden="true"></span> Project 9 IMPLY/FALSE</div>
+        <nav class="nav" aria-label="Dashboard sections">
+          <a href="#story">Story</a>
+          <a href="#comparison">26 -&gt; 20</a>
+          <a href="#visuals">Visuals</a>
+          <a href="#iscas">ISCAS'85</a>
+          <a href="#commands">Commands</a>
+          <a href="#questions">Questions</a>
+        </nav>
+      </div>
+
+      <div class="hero-grid">
+        <div class="hero-copy">
+          <div>
+            <h1>Project 9 dashboard for the Fabian discussion</h1>
+            <p class="lead">
+              The project moved from a Yosys/AIG plan into a reproducible ABC adapter flow,
+              then into an explicit ZERO/IMPLY primitive graph, and now into a sequencer
+              optimization that reduces pulses while keeping the final program hardware-real.
+            </p>
+          </div>
+          <div class="status-line" aria-label="Current headline results">
+            <div class="status-item">
+              <span class="status-value">26 -&gt; 20</span>
+              <span class="status-label">full_adder optimized steps</span>
+            </div>
+            <div class="status-item">
+              <span class="status-value">20 -&gt; 15</span>
+              <span class="status-label">c17 optimized steps</span>
+            </div>
+            <div class="status-item">
+              <span class="status-value">11 / 11</span>
+              <span class="status-label">ISCAS'85 circuits PASS</span>
+            </div>
+          </div>
+        </div>
+
+        <aside class="hero-panel" aria-label="Pipeline summary">
+          <div class="panel-title">
+            <span>Main line</span>
+            <span>2026-07-03 meeting</span>
+          </div>
+          <div class="pipeline-stack">
+            <div class="pipeline-card">
+              <span class="pipeline-no">1</span>
+              <div>
+                <strong>Yosys/AIG plan</strong>
+                <span>Start from combinational Verilog / BLIF / BENCH and normalize it through the standard open synthesis front end.</span>
+              </div>
+            </div>
+            <div class="pipeline-card">
+              <span class="pipeline-no">2</span>
+              <div>
+                <strong>ABC adapter</strong>
+                <span>Use helper cells such as INV only where ABC needs them to map reliably.</span>
+              </div>
+            </div>
+            <div class="pipeline-card">
+              <span class="pipeline-no">3</span>
+              <div>
+                <strong>ZERO/IMPLY primitive graph</strong>
+                <span>Lower helper gates before sequencing, so the project-facing graph is only CONST0/ZERO plus IMPLY.</span>
+              </div>
+            </div>
+            <div class="pipeline-card">
+              <span class="pipeline-no">4</span>
+              <div>
+                <strong>Sequencer optimization</strong>
+                <span>Detect ZERO + IMPLY inversion shapes and retain useful inverse aliases to avoid repeated reset/recompute pulses.</span>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </header>
+
+    <section id="story">
+      <div class="section-head">
+        <h2>Evolution story</h2>
+        <p class="section-note">
+          The key message is that the hardware primitive set did not change. The new result comes from exposing the primitive dependency graph and scheduling it better.
+        </p>
+      </div>
+      <div class="route" aria-label="Project route from front end to optimized sequence">
+        <article class="route-step">
+          <span class="tag blue">Front end</span>
+          <div>
+            <h3>Yosys/AIG plan</h3>
+            <p>Use existing synthesis tools for normalization instead of writing a Boolean optimizer from scratch.</p>
+          </div>
+        </article>
+        <article class="route-step">
+          <span class="tag amber">Tool adapter</span>
+          <div>
+            <h3>ABC adapter library</h3>
+            <p>ABC maps through IMPLY plus helper gates. This is a mapping convenience, not the final memory operation set.</p>
+          </div>
+        </article>
+        <article class="route-step">
+          <span class="tag green">Project primitive</span>
+          <div>
+            <h3>ZERO/IMPLY graph</h3>
+            <p>Every helper is expanded into primitive nodes, for example INV x becomes ZERO z followed by IMPLY x, z.</p>
+          </div>
+        </article>
+        <article class="route-step">
+          <span class="tag red">Scheduler insight</span>
+          <div>
+            <h3>Alias-aware sequencing</h3>
+            <p>The sequencer treats that primitive shape as a cacheable inverse while still emitting only FALSE and IMPLY pulses.</p>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="comparison">
+      <div class="section-head">
+        <h2>What improved</h2>
+        <p class="section-note">
+          The same compile flow now emits fewer optimized pulses for both the explanatory full adder and the first ISCAS'85 smoke circuit.
+        </p>
+      </div>
+      <div class="comparison-grid">
+        <article class="metric-card">
+          <div class="metric-top">
+            <div class="metric-name">full_adder</div>
+            <span class="tag green">6 pulses saved</span>
+          </div>
+          <div class="before-after">
+            <div class="ba-cell">
+              <div class="ba-label">Before</div>
+              <div class="ba-value">26</div>
+              <div class="ba-detail">7 FALSE + 19 IMPLY, 7 cells</div>
+            </div>
+            <div class="arrow" aria-hidden="true">-&gt;</div>
+            <div class="ba-cell after">
+              <div class="ba-label">After</div>
+              <div class="ba-value">20</div>
+              <div class="ba-detail">4 FALSE + 16 IMPLY, 7 cells</div>
+            </div>
+          </div>
+        </article>
+
+        <article class="metric-card">
+          <div class="metric-top">
+            <div class="metric-name">c17</div>
+            <span class="tag green">25.0% fewer opt steps</span>
+          </div>
+          <div class="before-after">
+            <div class="ba-cell">
+              <div class="ba-label">Before</div>
+              <div class="ba-value">20</div>
+              <div class="ba-detail">7 cells, same primitive graph path</div>
+            </div>
+            <div class="arrow" aria-hidden="true">-&gt;</div>
+            <div class="ba-cell after">
+              <div class="ba-label">After</div>
+              <div class="ba-value">15</div>
+              <div class="ba-detail">8 cells, all compile checks PASS</div>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="visuals">
+      <div class="section-head">
+        <h2>Visual evidence</h2>
+        <p class="section-note">
+          These images are generated from the current docs artifacts. The PDF link opens the printable A4 26-to-20 comparison sheet.
+        </p>
+      </div>
+
+      <div class="visual-grid">
+        <article class="image-frame">
+          <img src="full_adder_26_to_20_a4_preview.png" alt="Full adder 26-step to 20-step A4 comparison preview">
+          <div class="image-actions">
+            <span>Printable comparison generated for the supervisor discussion.</span>
+            <a href="full_adder_26_to_20_a4.pdf">Open A4 PDF</a>
+          </div>
+        </article>
+
+        <div class="graph-grid">
+          <article class="graph-card">
+            <h3>ABC adapter graph</h3>
+            <p>Shows the adapter netlist stage before helper gates are lowered.</p>
+            <div class="graph-scroll">
+              <img src="full_adder_dependency_graph.svg" alt="Full adder ABC adapter dependency graph">
+            </div>
+          </article>
+          <article class="graph-card">
+            <h3>Primitive graph</h3>
+            <p>Shows the ZERO/IMPLY graph that the sequencer receives.</p>
+            <div class="graph-scroll">
+              <img src="full_adder_primitive_dependency_graph.svg" alt="Full adder ZERO/IMPLY primitive dependency graph">
+            </div>
+          </article>
+        </div>
+      </div>
+
+      <article class="image-frame" style="margin-top: 18px;">
+        <img src="full_adder_schedule.svg" alt="Current full adder 20-step IMPLY/FALSE schedule">
+        <div class="image-actions">
+          <span>Current optimized full_adder schedule from compiled/full_adder/full_adder.seq.txt.</span>
+          <a href="full_adder_schedule.svg">Open schedule SVG</a>
+        </div>
+      </article>
+    </section>
+
+    <section id="iscas">
+      <div class="section-head">
+        <h2>ISCAS'85 result: 11/11 PASS</h2>
+        <p class="section-note">
+          Each row was produced by run_iscas85.py through compile.py. PASS means ABC mapping, primitive lowering, optimized sequence, naive sequence, and simulator sanity checks completed.
+        </p>
+      </div>
+
+      <div class="table-wrap">
+        <table aria-label="ISCAS'85 before and after optimization table">
+          <thead>
+            <tr>
+              <th>Circuit</th>
+              <th>Inputs</th>
+              <th>Outputs</th>
+              <th>Before opt</th>
+              <th>After opt</th>
+              <th>Delta</th>
+              <th>Cells before -&gt; after</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>c1355</td><td>41</td><td>32</td><td>960</td><td>888</td><td class="delta">-72</td><td>119 -&gt; 229</td><td class="pass">PASS</td></tr>
+            <tr><td>c17</td><td>5</td><td>2</td><td>20</td><td>15</td><td class="delta">-5</td><td>7 -&gt; 8</td><td class="pass">PASS</td></tr>
+            <tr><td>c1908</td><td>33</td><td>25</td><td>958</td><td>807</td><td class="delta">-151</td><td>152 -&gt; 208</td><td class="pass">PASS</td></tr>
+            <tr><td>c2670</td><td>233</td><td>140</td><td>1358</td><td>1235</td><td class="delta">-123</td><td>282 -&gt; 367</td><td class="pass">PASS</td></tr>
+            <tr><td>c3540</td><td>50</td><td>22</td><td>2174</td><td>1981</td><td class="delta">-193</td><td>236 -&gt; 323</td><td class="pass">PASS</td></tr>
+            <tr><td>c432</td><td>36</td><td>7</td><td>336</td><td>243</td><td class="delta">-93</td><td>56 -&gt; 72</td><td class="pass">PASS</td></tr>
+            <tr><td>c499</td><td>41</td><td>32</td><td>1013</td><td>885</td><td class="delta">-128</td><td>133 -&gt; 228</td><td class="pass">PASS</td></tr>
+            <tr><td>c5315</td><td>178</td><td>123</td><td>3142</td><td>2867</td><td class="delta">-275</td><td>483 -&gt; 640</td><td class="pass">PASS</td></tr>
+            <tr><td>c6288</td><td>32</td><td>32</td><td>4930</td><td>4616</td><td class="delta">-314</td><td>724 -&gt; 741</td><td class="pass">PASS</td></tr>
+            <tr><td>c7552</td><td>207</td><td>108</td><td>3583</td><td>3190</td><td class="delta">-393</td><td>564 -&gt; 717</td><td class="pass">PASS</td></tr>
+            <tr><td>c880</td><td>60</td><td>26</td><td>716</td><td>631</td><td class="delta">-85</td><td>131 -&gt; 160</td><td class="pass">PASS</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="source-links" aria-label="Source files">
+        <a href="iscas85_results_before.md">Before report</a>
+        <a href="iscas85_results_after.md">After report</a>
+        <a href="iscas85_results_after.csv">After CSV</a>
+        <a href="sequencing_optimization_report.md">Optimization report</a>
+      </div>
+    </section>
+
+    <section id="commands">
+      <div class="section-head">
+        <h2>Live demo commands</h2>
+        <p class="section-note">
+          These are the commands to copy during the 2026-07-03 Fabian discussion. Run them from the repository root unless a command changes directory.
+        </p>
+      </div>
+
+      <div class="command-grid">
+        <article class="command-card">
+          <div class="command-head">
+            <span>Compile the two headline circuits</span>
+            <button class="copy-btn" type="button" data-copy="compile-circuits">Copy</button>
+          </div>
+          <pre id="compile-circuits"><code>cd "/Users/apple/Library/Mobile Documents/com~apple~CloudDocs/海德堡大学/2026ss/mcc/src"
+python3.14 synthesis/compile.py synthesis/circuits/full_adder.v
+python3.14 synthesis/compile.py synthesis/circuits/c17.v</code></pre>
+        </article>
+
+        <article class="command-card">
+          <div class="command-head">
+            <span>Run the public test suite</span>
+            <button class="copy-btn" type="button" data-copy="run-tests">Copy</button>
+          </div>
+          <pre id="run-tests"><code>cd "/Users/apple/Library/Mobile Documents/com~apple~CloudDocs/海德堡大学/2026ss/mcc/src"
+python3.14 -m pytest synthesis/tests -q</code></pre>
+        </article>
+
+        <article class="command-card">
+          <div class="command-head">
+            <span>Recreate ISCAS'85 after table</span>
+            <button class="copy-btn" type="button" data-copy="run-iscas">Copy</button>
+          </div>
+          <pre id="run-iscas"><code>cd "/Users/apple/Library/Mobile Documents/com~apple~CloudDocs/海德堡大学/2026ss/mcc/src"
+if [ ! -d /tmp/iscas85-benchmarks/.git ]; then
+  git clone --depth 1 https://github.com/santoshsmalagi/Benchmarks.git /tmp/iscas85-benchmarks
+fi
+python3.14 synthesis/run_iscas85.py /tmp/iscas85-benchmarks/ISCAS85 \
+  --csv docs/iscas85_results_after.csv \
+  --md docs/iscas85_results_after.md</code></pre>
+        </article>
+      </div>
+    </section>
+
+    <section id="questions">
+      <div class="questions">
+        <div class="section-head" style="margin-bottom: 0;">
+          <h2>Questions for Fabian</h2>
+          <p class="section-note" style="color: #b9c7d8;">
+            The last slide of the discussion should turn the progress into decisions about evaluation and scheduler direction.
+          </p>
+        </div>
+        <ol class="question-list">
+          <li><span class="q-no">1</span><span>Should the final scheduler optimize primarily for step count, or should it expose a step/cell Pareto mode for the final evaluation?</span></li>
+          <li><span class="q-no">2</span><span>Is the ABC adapter library acceptable if the public primitive graph and emitted pulse sequence are strictly ZERO/CONST0 plus IMPLY/FALSE?</span></li>
+          <li><span class="q-no">3</span><span>For ISCAS'85, should the report emphasize 11/11 functional PASS first, then discuss cell pressure as the remaining tradeoff?</span></li>
+          <li><span class="q-no">4</span><span>Which next benchmark direction matters more: larger ISCAS circuits, ATOMIC comparison, or a focused full-adder/C64-style hand-optimized comparison?</span></li>
+        </ol>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    function selectText(node) {
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+
+    async function copyText(text) {
+      if (navigator.clipboard && window.isSecureContext) {
+        try {
+          await navigator.clipboard.writeText(text);
+          return true;
+        } catch (_err) {
+          // Fall through to the textarea path used by local file previews.
+        }
+      }
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.setAttribute("readonly", "");
+      textarea.style.position = "fixed";
+      textarea.style.left = "-9999px";
+      textarea.style.top = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      let ok = false;
+      try {
+        ok = document.execCommand("copy");
+      } finally {
+        document.body.removeChild(textarea);
+      }
+      return ok;
+    }
+
+    const buttons = document.querySelectorAll("[data-copy]");
+    for (const button of buttons) {
+      button.addEventListener("click", async () => {
+        const id = button.getAttribute("data-copy");
+        const target = document.getElementById(id);
+        if (!target) return;
+        const text = target.textContent.trim();
+        try {
+          const ok = await copyText(text);
+          if (!ok) throw new Error("copy failed");
+          const old = button.textContent;
+          button.textContent = "Copied";
+          window.setTimeout(() => {
+            button.textContent = old;
+          }, 1300);
+        } catch (_err) {
+          selectText(target);
+          button.textContent = "Selected";
+        }
+      });
+    }
+  </script>
+</body>
+</html>
