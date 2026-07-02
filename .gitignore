@@ -24,3 +24,6 @@ synthesis/export_atomic.py
 synthesis/robustness.py
 synthesis/tests/test_atomic_export.py
 synthesis/tests/test_e2e.py
+
+# local print/export scratch output
+output/

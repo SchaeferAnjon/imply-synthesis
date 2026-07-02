@@ -84,6 +84,16 @@ outputs. The figure is generated from the actual `compile.py` sequence output.
 
 ![Full adder IMPLY/FALSE operation schedule](docs/full_adder_schedule.svg)
 
+### Printable 26-to-20 comparison handout
+
+For the supervisor discussion, this A4 printout places the old 26-step schedule
+and the optimized 20-step schedule on one page, with the exact scheduling change
+called out in the middle.
+
+[Download the A4 PDF](docs/full_adder_26_to_20_a4.pdf)
+
+![Full adder 26-to-20 printable comparison](docs/full_adder_26_to_20_a4_preview.png)
+
 The sequencing optimization and the ISCAS'85 before/after table are summarized
 in [`docs/sequencing_optimization_report.md`](docs/sequencing_optimization_report.md).
 
