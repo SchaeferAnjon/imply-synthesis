@@ -35,9 +35,11 @@ def parse_compile_output(text: str) -> dict[str, str]:
     return result
 
 
-def run_one(path: Path, timeout: int) -> dict[str, str]:
+def run_one(path: Path, timeout: int,
+            extra_args: list[str] | None = None) -> dict[str, str]:
     started = time.time()
     cmd = [sys.executable, str(HERE / "compile.py"), str(path)]
+    cmd += extra_args or []
     try:
         proc = subprocess.run(cmd, cwd=HERE.parent, capture_output=True, text=True,
                               timeout=timeout)
@@ -110,6 +112,8 @@ def main() -> None:
                         help="seconds per circuit")
     parser.add_argument("--csv", type=Path, default=HERE / "iscas85_results.csv")
     parser.add_argument("--md", type=Path, default=HERE / "iscas85_results.md")
+    parser.add_argument("--unlimited-cells", action="store_true",
+                        help="pass --unlimited-cells to compile.py")
     args = parser.parse_args()
 
     files = sorted(args.iscas85_dir.glob("**/*.v"))
@@ -117,8 +121,9 @@ def main() -> None:
         raise SystemExit(f"no .v files found under {args.iscas85_dir}")
 
     rows = []
+    extra = ["--unlimited-cells"] if args.unlimited_cells else []
     for path in files:
-        row = run_one(path, args.timeout)
+        row = run_one(path, args.timeout, extra)
         rows.append(row)
         print(
             f"{row.get('circuit', '-'):<8} "

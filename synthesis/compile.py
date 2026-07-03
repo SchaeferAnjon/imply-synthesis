@@ -220,6 +220,12 @@ def main() -> None:
     ap.add_argument("circuit", type=Path)
     ap.add_argument("-o", "--out", type=Path, default=None,
                     help="sequence output file (default: <work>/<name>.seq.txt)")
+    ap.add_argument("--preserve-inputs", action="store_true",
+                    help="keep every input cell readable at the end of the "
+                         "optimized sequence (inputs are never overwritten)")
+    ap.add_argument("--unlimited-cells", action="store_true",
+                    help="never reuse a cell: all resets pack into a single "
+                         "upfront FALSE pulse (fewest steps, widest row)")
     args = ap.parse_args()
     src = args.circuit.resolve()
     if not src.exists():
@@ -246,7 +252,11 @@ def main() -> None:
 
     progs = {}
     progs["naive"] = Sequencer(optimize=False).run(inputs, outputs, primitive_gates)
-    progs["opt"] = Sequencer(optimize=True).run(inputs, outputs, primitive_gates)
+    progs["opt"] = Sequencer(
+        optimize=True,
+        preserve_inputs=args.preserve_inputs,
+        unlimited_cells=args.unlimited_cells).run(inputs, outputs,
+                                                  primitive_gates)
 
     (work / "mapped_logic.blif").write_text(
         gates_to_blif(name, inputs, outputs, gates))

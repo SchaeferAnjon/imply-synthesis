@@ -1,0 +1,145 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1238 680" width="1238" height="680" role="img" aria-labelledby="title desc">
+<title id="title">full_adder, unlimited cells (17 steps, 11 cells)</title>
+<desc id="desc">C64-style scheduling graph generated from the IMPLY/FALSE sequence artifact.</desc>
+<defs>
+<marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,4 L0,8 Z" fill="#111111"/></marker>
+<marker id="axisArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,4 L0,8 Z" fill="#111111"/></marker>
+</defs>
+<style>
+text{font-family:Arial,Helvetica,sans-serif;fill:#111111}
+.row-title{font-size:15px;font-weight:700}
+.badge{stroke:#111111;stroke-width:2.2}
+.badge.work{fill:#ef9a9a}
+.badge.input{fill:#c7e8f6}
+.badge.output{fill:#d8efd2}
+.badge.io{fill:#c7e8f6}
+.rail{stroke:#111111;stroke-width:2.1;fill:none}
+.flow{stroke:#111111;stroke-width:1.8;fill:none;marker-end:url(#arrow)}
+.axis{stroke:#111111;stroke-width:1.5;fill:none;marker-end:url(#axisArrow)}
+.step{font-size:14px}
+.step-label{font-size:17px;font-weight:700}
+.op{fill:#dcead7;stroke:#111111;stroke-width:3}
+.op-label{font-size:11px;font-weight:700}
+.false-label{font-size:18px;font-weight:700}
+.out{font-size:20px;font-weight:700;fill:#ff0000;font-style:italic}
+</style>
+<rect x="0" y="0" width="1238" height="680" fill="#ffffff"/>
+<circle cx="94" cy="83" r="16" class="badge work"/>
+<text x="94" y="88" text-anchor="middle" class="row-title">w1</text>
+<path d="M114,83 H1096" class="rail"/>
+<circle cx="94" cy="133" r="16" class="badge work"/>
+<text x="94" y="138" text-anchor="middle" class="row-title">w2</text>
+<path d="M114,133 H1096" class="rail"/>
+<circle cx="94" cy="183" r="16" class="badge work"/>
+<text x="94" y="188" text-anchor="middle" class="row-title">w3</text>
+<path d="M114,183 H1096" class="rail"/>
+<circle cx="94" cy="233" r="16" class="badge work"/>
+<text x="94" y="238" text-anchor="middle" class="row-title">w4</text>
+<path d="M114,233 H1096" class="rail"/>
+<circle cx="94" cy="283" r="16" class="badge work"/>
+<text x="94" y="288" text-anchor="middle" class="row-title">w5</text>
+<path d="M114,283 H1096" class="rail"/>
+<circle cx="94" cy="333" r="16" class="badge work"/>
+<text x="94" y="338" text-anchor="middle" class="row-title">w6</text>
+<path d="M114,333 H1096" class="rail"/>
+<circle cx="94" cy="383" r="16" class="badge output"/>
+<text x="94" y="388" text-anchor="middle" class="row-title">cout</text>
+<path d="M114,383 H1096" class="rail"/>
+<text x="1114" y="373" text-anchor="start" class="out">Cout</text>
+<circle cx="94" cy="433" r="16" class="badge output"/>
+<text x="94" y="438" text-anchor="middle" class="row-title">sum</text>
+<path d="M114,433 H1096" class="rail"/>
+<text x="1114" y="423" text-anchor="start" class="out">Sum</text>
+<circle cx="94" cy="483" r="16" class="badge input"/>
+<text x="94" y="488" text-anchor="middle" class="row-title">a</text>
+<path d="M114,483 H1096" class="rail"/>
+<circle cx="94" cy="533" r="16" class="badge input"/>
+<text x="94" y="538" text-anchor="middle" class="row-title">b</text>
+<path d="M114,533 H1096" class="rail"/>
+<circle cx="94" cy="583" r="16" class="badge input"/>
+<text x="94" y="588" text-anchor="middle" class="row-title">cin</text>
+<path d="M114,583 H1096" class="rail"/>
+<rect x="187.0" y="67.0" width="36" height="32" class="op"/>
+<text x="205" y="89" text-anchor="middle" class="false-label">⊥</text>
+<rect x="187.0" y="117.0" width="36" height="32" class="op"/>
+<text x="205" y="139" text-anchor="middle" class="false-label">⊥</text>
+<rect x="187.0" y="167.0" width="36" height="32" class="op"/>
+<text x="205" y="189" text-anchor="middle" class="false-label">⊥</text>
+<rect x="187.0" y="217.0" width="36" height="32" class="op"/>
+<text x="205" y="239" text-anchor="middle" class="false-label">⊥</text>
+<rect x="187.0" y="267.0" width="36" height="32" class="op"/>
+<text x="205" y="289" text-anchor="middle" class="false-label">⊥</text>
+<rect x="187.0" y="367.0" width="36" height="32" class="op"/>
+<text x="205" y="389" text-anchor="middle" class="false-label">⊥</text>
+<rect x="187.0" y="317.0" width="36" height="32" class="op"/>
+<text x="205" y="339" text-anchor="middle" class="false-label">⊥</text>
+<rect x="187.0" y="417.0" width="36" height="32" class="op"/>
+<text x="205" y="439" text-anchor="middle" class="false-label">⊥</text>
+<path d="M231.0,583 H259 V99.0" class="flow"/>
+<rect x="241.0" y="67.0" width="36" height="32" class="op"/>
+<text x="259" y="87" text-anchor="middle" class="op-label">IMP</text>
+<path d="M285.0,483 H313 V149.0" class="flow"/>
+<rect x="295.0" y="117.0" width="36" height="32" class="op"/>
+<text x="313" y="137" text-anchor="middle" class="op-label">IMP</text>
+<path d="M339.0,133 H367 V567.0" class="flow"/>
+<rect x="349.0" y="567.0" width="36" height="32" class="op"/>
+<text x="367" y="587" text-anchor="middle" class="op-label">IMP</text>
+<path d="M393.0,583 H421 V199.0" class="flow"/>
+<rect x="403.0" y="167.0" width="36" height="32" class="op"/>
+<text x="421" y="187" text-anchor="middle" class="op-label">IMP</text>
+<path d="M447.0,533 H475 V249.0" class="flow"/>
+<rect x="457.0" y="217.0" width="36" height="32" class="op"/>
+<text x="475" y="237" text-anchor="middle" class="op-label">IMP</text>
+<path d="M501.0,233 H529 V567.0" class="flow"/>
+<rect x="511.0" y="567.0" width="36" height="32" class="op"/>
+<text x="529" y="587" text-anchor="middle" class="op-label">IMP</text>
+<path d="M555.0,483 H583 V99.0" class="flow"/>
+<rect x="565.0" y="67.0" width="36" height="32" class="op"/>
+<text x="583" y="87" text-anchor="middle" class="op-label">IMP</text>
+<path d="M609.0,83 H637 V267.0" class="flow"/>
+<rect x="619.0" y="267.0" width="36" height="32" class="op"/>
+<text x="637" y="287" text-anchor="middle" class="op-label">IMP</text>
+<path d="M663.0,233 H691 V267.0" class="flow"/>
+<rect x="673.0" y="267.0" width="36" height="32" class="op"/>
+<text x="691" y="287" text-anchor="middle" class="op-label">IMP</text>
+<path d="M717.0,283 H745 V199.0" class="flow"/>
+<rect x="727.0" y="167.0" width="36" height="32" class="op"/>
+<text x="745" y="187" text-anchor="middle" class="op-label">IMP</text>
+<path d="M771.0,183 H799 V367.0" class="flow"/>
+<rect x="781.0" y="367.0" width="36" height="32" class="op"/>
+<text x="799" y="387" text-anchor="middle" class="op-label">IMP</text>
+<path d="M825.0,583 H853 V349.0" class="flow"/>
+<rect x="835.0" y="317.0" width="36" height="32" class="op"/>
+<text x="853" y="337" text-anchor="middle" class="op-label">IMP</text>
+<path d="M879.0,183 H907 V317.0" class="flow"/>
+<rect x="889.0" y="317.0" width="36" height="32" class="op"/>
+<text x="907" y="337" text-anchor="middle" class="op-label">IMP</text>
+<path d="M933.0,533 H961 V99.0" class="flow"/>
+<rect x="943.0" y="67.0" width="36" height="32" class="op"/>
+<text x="961" y="87" text-anchor="middle" class="op-label">IMP</text>
+<path d="M987.0,83 H1015 V417.0" class="flow"/>
+<rect x="997.0" y="417.0" width="36" height="32" class="op"/>
+<text x="1015" y="437" text-anchor="middle" class="op-label">IMP</text>
+<path d="M1041.0,333 H1069 V417.0" class="flow"/>
+<rect x="1051.0" y="417.0" width="36" height="32" class="op"/>
+<text x="1069" y="437" text-anchor="middle" class="op-label">IMP</text>
+<path d="M74,636 H1096" class="axis"/>
+<text x="84" y="658" text-anchor="start" class="step-label">Steps</text>
+<text x="205" y="658" text-anchor="middle" class="step">1</text>
+<text x="259" y="658" text-anchor="middle" class="step">2</text>
+<text x="313" y="658" text-anchor="middle" class="step">3</text>
+<text x="367" y="658" text-anchor="middle" class="step">4</text>
+<text x="421" y="658" text-anchor="middle" class="step">5</text>
+<text x="475" y="658" text-anchor="middle" class="step">6</text>
+<text x="529" y="658" text-anchor="middle" class="step">7</text>
+<text x="583" y="658" text-anchor="middle" class="step">8</text>
+<text x="637" y="658" text-anchor="middle" class="step">9</text>
+<text x="691" y="658" text-anchor="middle" class="step">10</text>
+<text x="745" y="658" text-anchor="middle" class="step">11</text>
+<text x="799" y="658" text-anchor="middle" class="step">12</text>
+<text x="853" y="658" text-anchor="middle" class="step">13</text>
+<text x="907" y="658" text-anchor="middle" class="step">14</text>
+<text x="961" y="658" text-anchor="middle" class="step">15</text>
+<text x="1015" y="658" text-anchor="middle" class="step">16</text>
+<text x="1069" y="658" text-anchor="middle" class="step">17</text>
+</svg>

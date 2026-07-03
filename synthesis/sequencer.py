@@ -17,7 +17,11 @@ Optimizations (optimize=True):
 - dead-target reuse: IMPLY gate writes straight into its b-operand's cell
   when b is dead afterwards (1 step instead of up to 5).
 - cell reclamation: cells whose values are dead return to a free list.
-- parallel-FALSE merging: independent FALSE resets fuse into one pulse.
+- parallel-FALSE packing: every reset moves freely between the ops touching
+  its cell, so pulse times are chosen by minimum interval piercing — the
+  fewest FALSE pulses possible for the emitted IMPLY order (pack_false).
+- unlimited-cells mode: never reuse a cell, so every reset packs into one
+  upfront FALSE pulse (steps = #IMPLY + 1) at the cost of a wider row.
 - portfolio scheduling: three gate orders (topological, greedy-by-step-cost,
   greedy-by-cell-pressure) are tried and the best program kept
   (objective="steps" -> min (steps, cells); "cells" flips the key, useful to
@@ -26,6 +30,7 @@ Optimizations (optimize=True):
 naive mode (optimize=False) = plain topological order, none of the above;
 this is the baseline for sub-task (iii).
 """
+from bisect import bisect_left
 from collections import Counter
 from dataclasses import dataclass, field
 
@@ -126,6 +131,8 @@ class _Core:
     """One emission pass over the netlist with a chosen gate-order strategy."""
     optimize: bool
     scheduler: str = "topo"            # "topo" | "greedy-steps" | "greedy-cells"
+    preserve_inputs: bool = False      # keep every input cell readable at the end
+    reuse_cells: bool = True           # False: fresh cell per reset, 1 FALSE pulse
     ops: list[Op] = field(default_factory=list)
     val: dict[str, int] = field(default_factory=dict)   # net -> cell holding net
     neg: dict[str, int] = field(default_factory=dict)   # net -> cell holding !net
@@ -139,7 +146,7 @@ class _Core:
     def alloc(self) -> int:
         # In optimized mode, prefer a dead cell over growing the row. Small
         # reminder to myself: pop() gives a cell id, not the old value in it.
-        if self.optimize and self.free:
+        if self.optimize and self.reuse_cells and self.free:
             return self.free.pop()
         c = self.n_cells
         self.n_cells += 1
@@ -342,6 +349,10 @@ class _Core:
         if self.optimize:
             gates = fold_zero_imply_inverters(gates, outputs)
         self.protected = set(outputs)
+        if self.preserve_inputs:
+            # Protected inputs are never destructible and never reclaimed,
+            # so their cells still hold the original operands at the end.
+            self.protected |= set(inputs)
         # remaining tells us whether overwriting a net is safe. It is the small
         # bit of bookkeeping that keeps IMPLY's destructive target sane.
         for _, pins in gates:
@@ -386,7 +397,7 @@ class _Core:
                 pending.remove(best)
 
         if self.optimize:
-            ops = merge_false(self.ops)
+            ops = pack_false(self.ops)
         else:
             ops = self.ops
         out_cell = {}
@@ -398,9 +409,12 @@ class _Core:
 class Sequencer:
     """Public API wrapper around the scheduling portfolio."""
 
-    def __init__(self, optimize: bool, objective: str = "steps"):
+    def __init__(self, optimize: bool, objective: str = "steps",
+                 preserve_inputs: bool = False, unlimited_cells: bool = False):
         self.optimize = optimize
         self.objective = objective
+        self.preserve_inputs = preserve_inputs
+        self.unlimited_cells = unlimited_cells
 
     def run(self, inputs: list[str], outputs: list[str],
             gates: list[tuple]) -> Program:
@@ -408,7 +422,10 @@ class Sequencer:
             return _Core(False).run(inputs, outputs, gates)
         candidates = []
         for sched in ("topo", "greedy-steps", "greedy-cells"):
-            program = _Core(True, sched).run(inputs, outputs, gates)
+            program = _Core(True, sched,
+                            preserve_inputs=self.preserve_inputs,
+                            reuse_cells=not self.unlimited_cells).run(
+                                inputs, outputs, gates)
             candidates.append(program)
         if self.objective == "cells":
             best = candidates[0]
@@ -423,36 +440,60 @@ class Sequencer:
         return best
 
 
-def merge_false(ops: list[Op]) -> list[Op]:
-    """Fuse independent FALSE resets into one parallel pulse."""
-    out: list[Op] = []
+def pack_false(ops: list[Op]) -> list[Op]:
+    """Repack FALSE resets into the fewest pulses for the given IMPLY order.
+
+    A reset may fire anywhere after the previous op touching its cell and
+    before the next one, so each requested reset is an interval of legal
+    gaps between IMPLYs. Minimizing the pulse count is then the classic
+    minimum piercing-points problem, which the greedy sweep over earliest
+    right endpoints solves optimally. Unlike merge_false, a reset can also
+    move *later* to share a pulse with resets that come after it. Each
+    chosen pulse is finally placed at the earliest gap all of its members
+    allow, so resets still happen as early as possible.
+    """
+    implies = [op for op in ops if op[0] != "FALSE"]
+    n = len(implies)
+    intervals: list[list] = []           # [lo_gap, hi_gap, cell]
+    pending: dict[int, list] = {}        # cell -> intervals awaiting hi
+    last_gap: dict[int, int] = {}        # cell -> earliest gap after last touch
+    seen = 0
     for op in ops:
-        if op[0] != "FALSE":
-            out.append(op)
-            continue
-        cells = op[1]
-        j = len(out) - 1
-        merged = False
-        while j >= 0:
-            o = out[j]
-            if o[0] == "FALSE":
-                overlap = False
-                for c in cells:
-                    if c in o[1]:
-                        overlap = True
-                        break
-                if not overlap:
-                    out[j] = ("FALSE", o[1] + cells)
-                    merged = True
-                break
-            touched = False
-            for c in cells:
-                if c == o[1] or c == o[2]:
-                    touched = True
-                    break
-            if touched:
-                break
-            j -= 1
-        if not merged:
-            out.append(op)
+        if op[0] == "FALSE":
+            for c in op[1]:
+                iv = [last_gap.get(c, 0), n, c]
+                intervals.append(iv)
+                pending.setdefault(c, []).append(iv)
+        else:
+            for c in {op[1], op[2]}:
+                for iv in pending.pop(c, ()):
+                    iv[1] = seen         # must fire before this IMPLY
+                last_gap[c] = seen + 1   # later resets must fire after it
+            seen += 1
+
+    intervals.sort(key=lambda iv: iv[1])
+    groups: list[list] = []              # [placement_gap, cover_point, cells]
+    points: list[int] = []               # cover points, ascending
+    for lo, hi, c in intervals:
+        # A new pulse is needed only when no existing point covers [lo, hi];
+        # otherwise join the earliest compatible pulse so resets stay early.
+        k = bisect_left(points, lo)
+        if k == len(groups):
+            groups.append([lo, hi, {c}])
+            points.append(hi)
+        else:
+            g = groups[k]
+            g[2].add(c)
+            if lo > g[0]:
+                g[0] = lo
+
+    by_gap: dict[int, set] = {}
+    for gap, _, cells in groups:
+        by_gap.setdefault(gap, set()).update(cells)
+    out: list[Op] = []
+    for k in range(n + 1):
+        if k in by_gap:
+            out.append(("FALSE", sorted(by_gap[k])))
+        if k < n:
+            out.append(implies[k])
     return out
