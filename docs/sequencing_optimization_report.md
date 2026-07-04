@@ -187,15 +187,47 @@ Run the local checks:
 ```bash
 cd <repo root>
 python3.14 synthesis/compile.py synthesis/circuits/full_adder.v
-python3.14 synthesis/compile.py synthesis/circuits/c17.v
+python3.14 synthesis/compile.py synthesis/circuits/ISCAS85/c17.v
 python3.14 -m pytest synthesis/tests -q
 ```
 
-Run ISCAS'85 after cloning Fabian's suggested benchmark repository:
+Compile one circuit and draw its scheduling graph:
+
+This snippet is written for the VS Code `fish` terminal.
+
+```fish
+set SRC synthesis/circuits/ISCAS85/c432.v
+  set CIRCUIT (basename $SRC .v)
+
+  python3.14 synthesis/compile.py $SRC
+  python3.14 synthesis/render_schedule_svg.py \
+        "synthesis/compiled/$CIRCUIT/$CIRCUIT.seq.txt" \
+        "docs/$CIRCUIT"_schedule.svg \
+        --drawio "docs/$CIRCUIT"_schedule.drawio \
+        --title "$CIRCUIT IMPLY/FALSE schedule"
+circuit : c432  (36 inputs, 7 outputs)
+abc map : 121 IMPLY + 61 INV
+primitive: 182 IMPLY + 61 ZERO
+steps   : naive 971  ->  opt 243   (cells 72)
+  PASS  abc-mapping == source (formal cec)
+  PASS  primitive graph == mapped netlist (formal cec)
+  PASS  opt sequence == primitive graph (formal cec)
+  PASS  naive sequence == primitive graph (formal cec)
+  PASS  simulator sanity (1000 vectors)
+sequence: /Users/apple/Library/Mobile Documents/com~apple~CloudDocs/海德堡大学/2026ss/mcc/src/synthesis/compiled/c432/c432.seq.txt
+```
+
+To draw another circuit, change only the `set SRC ...` line.
+
+For example, use `set SRC synthesis/circuits/full_adder.v` for the local full
+adder, or `set SRC synthesis/circuits/ISCAS85/c432.v` for ISCAS'85 `c432`.
+
+Run ISCAS'85 from the checked-in benchmark copy:
+
+The checked-in layout is flat: `synthesis/circuits/ISCAS85/<circuit>.v`.
 
 ```bash
-git clone --depth 1 https://github.com/santoshsmalagi/Benchmarks.git /tmp/iscas85-benchmarks
-python3.14 synthesis/run_iscas85.py /tmp/iscas85-benchmarks/ISCAS85 \
+python3.14 synthesis/run_iscas85.py synthesis/circuits/ISCAS85 \
   --csv docs/iscas85_results_after.csv \
   --md docs/iscas85_results_after.md
 ```

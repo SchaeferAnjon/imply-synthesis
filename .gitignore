@@ -27,3 +27,6 @@ synthesis/tests/test_e2e.py
 
 # local print/export scratch output
 output/
+
+# Claude Code session data / worktrees (never commit)
+.claude/
