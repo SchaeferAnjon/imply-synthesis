@@ -92,6 +92,13 @@ Expected shape:
 `compile.py` writes a few intermediate files under `compiled/<circuit>/`. The
 final sequence is the `.seq.txt` file.
 
+Two optional scheduling corners (details in `../docs/false_packing_report.md`):
+
+```bash
+python3.14 compile.py circuits/full_adder.v --preserve-inputs   # inputs stay readable
+python3.14 compile.py circuits/full_adder.v --unlimited-cells   # fewest steps: one upfront FALSE
+```
+
 For a nontrivial circuit such as `full_adder.v`, it also writes:
 
 ```text
