@@ -994,8 +994,8 @@
             <button class="copy-btn" type="button" data-copy="compile-circuits">Copy</button>
           </div>
           <pre id="compile-circuits"><code>cd "/Users/apple/Library/Mobile Documents/com~apple~CloudDocs/海德堡大学/2026ss/mcc/src"
-python3.14 synthesis/compile.py synthesis/circuits/full_adder.v
-python3.14 synthesis/compile.py synthesis/circuits/c17.v</code></pre>
+python3 synthesis/compile.py synthesis/circuits/full_adder.v
+python3 synthesis/compile.py synthesis/circuits/c17.v</code></pre>
         </article>
 
         <article class="command-card">
@@ -1004,7 +1004,7 @@ python3.14 synthesis/compile.py synthesis/circuits/c17.v</code></pre>
             <button class="copy-btn" type="button" data-copy="run-tests">Copy</button>
           </div>
           <pre id="run-tests"><code>cd "/Users/apple/Library/Mobile Documents/com~apple~CloudDocs/海德堡大学/2026ss/mcc/src"
-python3.14 -m pytest synthesis/tests -q</code></pre>
+python3 -m pytest synthesis/tests -q</code></pre>
         </article>
 
         <article class="command-card">
@@ -1013,10 +1013,8 @@ python3.14 -m pytest synthesis/tests -q</code></pre>
             <button class="copy-btn" type="button" data-copy="run-iscas">Copy</button>
           </div>
           <pre id="run-iscas"><code>cd "/Users/apple/Library/Mobile Documents/com~apple~CloudDocs/海德堡大学/2026ss/mcc/src"
-if [ ! -d /tmp/iscas85-benchmarks/.git ]; then
-  git clone --depth 1 https://github.com/santoshsmalagi/Benchmarks.git /tmp/iscas85-benchmarks
-fi
-python3.14 synthesis/run_iscas85.py /tmp/iscas85-benchmarks/ISCAS85 \
+# benchmarks are checked in under synthesis/circuits/ISCAS85
+python3 synthesis/run_iscas85.py synthesis/circuits/ISCAS85 \
   --csv docs/iscas85_results_after.csv \
   --md docs/iscas85_results_after.md</code></pre>
         </article>

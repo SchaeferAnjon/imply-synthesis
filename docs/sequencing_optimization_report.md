@@ -186,9 +186,9 @@ Run the local checks:
 
 ```bash
 cd <repo root>
-python3.14 synthesis/compile.py synthesis/circuits/full_adder.v
-python3.14 synthesis/compile.py synthesis/circuits/ISCAS85/c17.v
-python3.14 -m pytest synthesis/tests -q
+python3 synthesis/compile.py synthesis/circuits/full_adder.v
+python3 synthesis/compile.py synthesis/circuits/ISCAS85/c17.v
+python3 -m pytest synthesis/tests -q
 ```
 
 Compile one circuit and draw its scheduling graph:
@@ -199,8 +199,8 @@ This snippet is written for the VS Code `fish` terminal.
 set SRC synthesis/circuits/ISCAS85/c432.v
   set CIRCUIT (basename $SRC .v)
 
-  python3.14 synthesis/compile.py $SRC
-  python3.14 synthesis/render_schedule_svg.py \
+  python3 synthesis/compile.py $SRC
+  python3 synthesis/render_schedule_svg.py \
         "synthesis/compiled/$CIRCUIT/$CIRCUIT.seq.txt" \
         "docs/$CIRCUIT"_schedule.svg \
         --drawio "docs/$CIRCUIT"_schedule.drawio \
@@ -227,7 +227,7 @@ Run ISCAS'85 from the checked-in benchmark copy:
 The checked-in layout is flat: `synthesis/circuits/ISCAS85/<circuit>.v`.
 
 ```bash
-python3.14 synthesis/run_iscas85.py synthesis/circuits/ISCAS85 \
+python3 synthesis/run_iscas85.py synthesis/circuits/ISCAS85 \
   --csv docs/iscas85_results_after.csv \
   --md docs/iscas85_results_after.md
 ```

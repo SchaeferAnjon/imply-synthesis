@@ -12,7 +12,7 @@ The graphs are generated from `synthesis/compiled/<circuit>/<circuit>.seq.txt`
 using the repository renderer:
 
 ```bash
-python3.14 synthesis/render_schedule_svg.py \
+python3 synthesis/render_schedule_svg.py \
   synthesis/compiled/c17/c17.seq.txt \
   docs/iscas85_schedules/c17_schedule.svg \
   --drawio docs/iscas85_schedules/c17_schedule.drawio \

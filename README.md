@@ -146,6 +146,23 @@ ABC's mapper currently expects helper cells such as `INV`, so the code uses
 `INV x` becomes `ZERO z; IMPLY x z`. The final graph and pulse program therefore
 use only the operations required by the project: `FALSE/CONST0` and `IMPLY`.
 
+### scheduling: optimal FALSE packing and two corners
+
+The sequencer's `pack_false` pass treats every requested reset as an interval
+of legal positions between the ops touching its cell and picks pulse times by
+minimum interval piercing, so the FALSE pulse count is provably minimal for
+the emitted IMPLY order (resets can split per cell and also move later to
+share a pulse). Two `compile.py` flags expose the latency/area trade-off:
+
+- `--unlimited-cells` -- no cell reuse, every reset packs into one upfront
+  FALSE pulse, so `steps = #IMPLY + 1` (the min-steps corner).
+- `--preserve-inputs` -- input cells are never overwritten or reclaimed; the
+  original operands stay readable after the computation.
+
+Results and the comparison against SIMPLER MAGIC (TCAD'20) live in
+`docs/iscas85_results_after.md` (min-cells), `docs/iscas85_results_unlimited.md`
+(min-steps), `docs/comparison_simpler.md`, and `docs/false_packing_report.md`.
+
 ## files
 
 | path | role |
@@ -168,15 +185,15 @@ use only the operations required by the project: `FALSE/CONST0` and `IMPLY`.
 
 ```bash
 # simulator self-test
-python3.14 imply_sim.py
+python3 imply_sim.py
 
 # compile the smallest example
 cd synthesis
-python3.14 compile.py circuits/not1.v
+python3 compile.py circuits/not1.v
 cat compiled/not1/not1.seq.txt
 
 # a less trivial example
-python3.14 compile.py circuits/full_adder.v
+python3 compile.py circuits/full_adder.v
 ```
 
 For `not1.v`, the final sequence should be:
