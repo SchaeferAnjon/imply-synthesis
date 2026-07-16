@@ -114,8 +114,10 @@ def main() -> None:
                         default=HERE.parent / "output" / "iscas85" / "iscas85_results.csv")
     parser.add_argument("--md", type=Path,
                         default=HERE.parent / "output" / "iscas85" / "iscas85_results.md")
-    parser.add_argument("--unlimited-cells", action="store_true",
-                        help="pass --unlimited-cells to compile.py")
+    parser.add_argument("--no-preserve-inputs", action="store_true",
+                        help="pass --no-preserve-inputs to compile.py")
+    parser.add_argument("--max-cells", type=int, default=None,
+                        help="pass --max-cells to compile.py")
     args = parser.parse_args()
     args.csv.parent.mkdir(parents=True, exist_ok=True)
     args.md.parent.mkdir(parents=True, exist_ok=True)
@@ -125,7 +127,11 @@ def main() -> None:
         raise SystemExit(f"no .v files found under {args.iscas85_dir}")
 
     rows = []
-    extra = ["--unlimited-cells"] if args.unlimited_cells else []
+    extra = []
+    if args.no_preserve_inputs:
+        extra.append("--no-preserve-inputs")
+    if args.max_cells is not None:
+        extra += ["--max-cells", str(args.max_cells)]
     for path in files:
         row = run_one(path, args.timeout, extra)
         rows.append(row)

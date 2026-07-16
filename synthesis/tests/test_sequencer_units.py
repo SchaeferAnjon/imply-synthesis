@@ -83,16 +83,16 @@ def test_preserve_inputs_keeps_operands_readable() -> None:
     assert prog.out_cell["z"] not in prog.in_cell.values()
 
 
-# --------------------------------------------------------- unlimited cells
-def test_unlimited_cells_single_upfront_false_pulse() -> None:
-    # Without cell reuse every reset targets a fresh cell, so all resets
+# ------------------------------------------------------ no cell budget
+def test_no_budget_single_upfront_false_pulse() -> None:
+    # Without a cell budget every reset targets a fresh cell, so all resets
     # pack into one FALSE pulse before the first IMPLY.
     gates = [
         ("INV", {"a": "a", "O": "na"}),
         ("INV", {"a": "b", "O": "nb"}),
         ("IMPLY", {"a": "na", "b": "nb", "O": "z"}),
     ]
-    prog = Sequencer(optimize=True, unlimited_cells=True).run(
+    prog = Sequencer(optimize=True, preserve_inputs=False).run(
         ["a", "b"], ["z"], gates)
     falses = [op for op in prog.ops if op[0] == "FALSE"]
     assert len(falses) == 1
@@ -102,6 +102,26 @@ def test_unlimited_cells_single_upfront_false_pulse() -> None:
             row = _run_program(prog, {"a": x, "b": y})
             # z = IMPLY(!a, !b) = a | !b
             assert row.cells[prog.out_cell["z"]] == x | (1 - y)
+
+
+# --------------------------------------------------------- max_cells budget
+def test_max_cells_budget_caps_row_width() -> None:
+    # A tight budget forces cell reuse (fewer cells); the result must still
+    # be correct on every input combination.
+    gates = [
+        ("INV", {"a": "a", "O": "na"}),
+        ("INV", {"a": "b", "O": "nb"}),
+        ("IMPLY", {"a": "na", "b": "nb", "O": "z"}),
+    ]
+    wide = Sequencer(optimize=True, preserve_inputs=False).run(
+        ["a", "b"], ["z"], gates)
+    tight = Sequencer(optimize=True, preserve_inputs=False, max_cells=0).run(
+        ["a", "b"], ["z"], gates)
+    assert tight.n_cells <= wide.n_cells
+    for x in (0, 1):
+        for y in (0, 1):
+            row = _run_program(tight, {"a": x, "b": y})
+            assert row.cells[tight.out_cell["z"]] == x | (1 - y)
 
 
 # -------------------------------------------------------------- topo_order
@@ -156,7 +176,8 @@ def test_primitive_zero_imply_inverse_uses_reverse_alias() -> None:
 
 # ------------------------------------------------------ destructive target
 def test_destructive_target_single_imply_in_place() -> None:
-    prog: Program = Sequencer(optimize=True).run(
+    # In-place overwrite of input b requires preservation to be off.
+    prog: Program = Sequencer(optimize=True, preserve_inputs=False).run(
         ["a", "b"], ["z"], [("IMPLY", {"a": "a", "b": "b", "O": "z"})])
     assert prog.steps == 1                        # exactly one pulse
     assert prog.ops == [("IMPLY", prog.in_cell["a"], prog.in_cell["b"])]

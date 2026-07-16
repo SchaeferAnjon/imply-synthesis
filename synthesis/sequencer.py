@@ -13,7 +13,9 @@
 - 死目标复用：当 b 后续不再使用时，IMPLY 直接原地写 b 的 cell（1 步）。
 - cell 回收：值死亡后把 cell 放回 free 列表。
 - 并行 FALSE 打包：在合法区间内移动 reset，最小化 FALSE 脉冲数。
-- unlimited-cells：不复用 cell，使 reset 可集中到前置一次 FALSE。
+- 行宽预算 max_cells：预算内优先开新 cell（reset 可前置合并），
+  到达预算后转为复用空闲 cell。None = 不设预算（步数最少），
+  0 = 尽量复用（cell 最少）。
 - 调度组合搜索：尝试三种门顺序，保留目标函数最优程序。
 
 naive 模式（optimize=False）只做拓扑序，不启用上述优化，
@@ -119,7 +121,7 @@ class _Core:
     optimize: bool
     scheduler: str = "topo"            # "topo" | "greedy-steps" | "greedy-cells"
     preserve_inputs: bool = False      # True 时保证输入 cell 结尾仍可读
-    reuse_cells: bool = True           # False 时每次 reset 用新 cell
+    max_cells: int | None = None       # 行宽预算；None 不设限，0 尽量复用
     ops: list[Op] = field(default_factory=list)
     val: dict[str, int] = field(default_factory=dict)   # net -> 保存该值的 cell
     neg: dict[str, int] = field(default_factory=dict)   # net -> 保存 !net 的 cell
@@ -131,9 +133,10 @@ class _Core:
 
     # ------------------------------------------------------------- 基础设施
     def alloc(self) -> int:
-        """分配一个可用 cell，优先复用空闲 cell。"""
-        # 优化模式下优先复用已死亡 cell，避免盲目扩展行宽。
-        if self.optimize and self.reuse_cells and self.free:
+        """分配一个可用 cell：预算内先开新 cell，到预算后复用空闲 cell。"""
+        at_budget = (self.max_cells is not None
+                     and self.n_cells >= self.max_cells)
+        if self.optimize and at_budget and self.free:
             return self.free.pop()
         c = self.n_cells
         self.n_cells += 1
@@ -400,12 +403,16 @@ class Sequencer:
     """面向外部的调度 API：封装多策略候选并择优。"""
 
     def __init__(self, optimize: bool, objective: str = "steps",
-                 preserve_inputs: bool = False, unlimited_cells: bool = False):
-        """配置调度器参数。"""
+                 preserve_inputs: bool = True, max_cells: int | None = None):
+        """配置调度器参数。
+
+        preserve_inputs: 默认保护输入 cell（结尾仍可读）。
+        max_cells: 行宽预算。None 不设限（步数最少），0 尽量复用（cell 最少）。
+        """
         self.optimize = optimize
         self.objective = objective
         self.preserve_inputs = preserve_inputs
-        self.unlimited_cells = unlimited_cells
+        self.max_cells = max_cells
 
     def run(self, inputs: list[str], outputs: list[str],
             gates: list[tuple]) -> Program:
@@ -416,7 +423,7 @@ class Sequencer:
         for sched in ("topo", "greedy-steps", "greedy-cells"):
             program = _Core(True, sched,
                             preserve_inputs=self.preserve_inputs,
-                            reuse_cells=not self.unlimited_cells).run(
+                            max_cells=self.max_cells).run(
                                 inputs, outputs, gates)
             candidates.append(program)
         if self.objective == "cells":
