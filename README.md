@@ -1,235 +1,209 @@
-# IMPLY synthesis for Project 9
+# IMPLY Synthesis — Project 9, Memory-Centric Computing (SS 2026)
 
-This is my current public code for Project 9 in Memory-Centric Computing
-(SS 2026, Heidelberg University).
+Supervisor: Fabian Seiler · Heidelberg University
 
-The goal is to take a small combinational circuit and turn it into a sequence
-of memristive `FALSE` and `IMPLY` operations. The repository is intentionally
-conservative: it contains the simulator, the ABC mapping setup, the sequencer,
-the single-circuit compile flow, and the ISCAS'85 runner/report used for the
-latest supervisor discussion. Random fuzzing, ATOMIC export, and robustness
-experiments are still local work and are not included in this snapshot.
+## 1. What this project is
 
-Supervisor: Fabian Seiler
+Memristive crossbars can compute directly inside the memory array using two
+physical operations: a parallel **FALSE** reset pulse and stateful material
+implication, **IMPLY**(a, b) = ¬a ∨ b. This project is a compiler that takes
+any small combinational circuit (Verilog / BLIF / BENCH) and turns it into a
+verified sequence of FALSE and IMPLY pulses for one crossbar row.
 
-## visual summary
+The repository is intentionally conservative: it contains the logic-level
+simulator, the ABC mapping setup, the sequencer, the single-circuit compile
+flow, and the ISCAS'85 runner used for the latest supervisor discussion.
+Random fuzzing, ATOMIC export, and robustness experiments are still local
+work and are not included in this snapshot.
 
-### What changed after the feedback
+## 2. Summary of results
 
-| Feedback / concern | Updated result |
+| Result | Where it is shown |
 |---|---|
-| The scheduling was hard to understand from code alone. | `compile.py` now builds an explicit ZERO/IMPLY dependency graph before sequencing. |
-| The target primitives should be `CONST0` and `IMPLY`. | `synthesis/imply.genlib` is now the project-facing primitive library with only `ZERO` and `IMPLY`. |
-| ABC still needs helper cells to map reliably. | `synthesis/abc_imply.genlib` is kept only as an ABC adapter; helpers are expanded before sequencing. |
-| FALSE / ZERO structure should be visible to the scheduler. | The sequencer recognizes single-use `ZERO + IMPLY` inversion shapes and keeps useful inverse aliases alive. |
-| Results should be easy to inspect visually. | The README now shows the pipeline, lowering rule, schedule graph, benchmark table, and verification chain. |
-| Benchmarks should move toward ISCAS'85. | `c17.v` is kept as the smoke test, and `docs/sequencing_optimization_report.md` summarizes a full ISCAS'85 run. |
+| `full_adder`: 8 IMPLY + 4 INV after ABC → 12 IMPLY + 4 ZERO primitives → **20 steps / 7 cells** | [docs/full_adder/README.md](docs/full_adder/README.md) |
+| `c17` (first ISCAS'85 circuit): 6 IMPLY + 4 INV → 10 IMPLY + 4 ZERO → **15 steps / 8 cells** | [docs/c17/README.md](docs/c17/README.md) |
+| All 11 ISCAS'85 circuits compile and verify end-to-end (largest: `c6288`, 12422 naive → **4616** optimized steps) | [docs/sequencing_optimization_report.md](docs/sequencing_optimization_report.md) §5 |
+| FALSE packing is provably minimal for the emitted IMPLY order (minimum interval piercing) | [docs/document/false_packing_report.md](docs/document/false_packing_report.md) |
+| Two scheduling corners expose the latency/area trade-off: `--unlimited-cells` (min steps) and `--preserve-inputs` (operands stay readable) | [docs/full_adder/README.md](docs/full_adder/README.md) §8 |
+| Comparison against SIMPLER MAGIC (TCAD'20) | [docs/document/comparison_simpler.md](docs/document/comparison_simpler.md) |
 
-### Current pipeline
+Every compiled circuit passes the same four checks: three formal ABC `cec`
+equivalences (source == mapping == primitive graph == sequence) plus a
+truth-table / sampled simulation of the emitted pulse program.
 
-```mermaid
-flowchart LR
-    A["Verilog / BLIF / BENCH"] --> B["Yosys"]
-    B --> C["generic BLIF"]
-    C --> D["ABC with adapter library"]
-    D --> E["adapter netlist<br/>IMPLY + INV"]
-    E --> F["primitive dependency graph<br/>ZERO + IMPLY"]
-    F --> G["sequencer"]
-    G --> H["IMPLY / FALSE pulse sequence"]
-    H --> I["simulator sanity check"]
-    H --> J["ABC cec formal checks"]
+## 3. Pipeline
+
+```text
+circuit.v ──Yosys──▶ pre.blif ──ABC──▶ mapped.blif ──lower INV──▶ ZERO/IMPLY ──Sequencer──▶ .seq.txt
+            (§5)      generic   (§5)    IMPLY + INV                dependency      pulse
+                      gates             adapter netlist            graph           program
+                │              │                    │                        │
+                └─── cec ──────┴──────── cec ───────┴────────── cec ─────────┘  + simulator check
 ```
 
-### Why there are two libraries
+| stage | tool | input → output | what happens |
+|---|---|---|---|
+| frontend | Yosys | `.v` → `pre.blif` | parse, flatten, lower to generic single-bit gates |
+| mapping | ABC (`yosys-abc`) | `pre.blif` → `mapped.blif` | map onto `abc_imply.genlib` (IMPLY + INV helper); 3 scripts race, lowest cost wins |
+| lowering | `dependency_graph.py` | `mapped.blif` → primitive graph | every `INV x` becomes `ZERO z; IMPLY x z` — only project primitives remain |
+| scheduling | `sequencer.py` | primitive graph → `.seq.txt` | linear pulse program with cell reuse and optimal FALSE packing |
+| verification | ABC `cec` + `imply_sim.py` | every arrow above | formal equivalence at each stage + pulse-level simulation |
 
-ABC's mapper expects helper cells such as an inverter. The project result still
-uses only the required primitives by expanding every helper immediately after
-mapping.
+The single-circuit driver is `synthesis/compile.py`; it runs all stages and
+prints the PASS/FAIL summary. `synthesis/run_iscas85.py` batches it over the
+checked-in ISCAS'85 set.
 
-```mermaid
-flowchart TB
-    subgraph Adapter["ABC adapter stage"]
-        A["abc_imply.genlib"] --> B["IMPLY"]
-        A --> C["INV helper"]
-        A --> D["ZERO / ONE helpers"]
-    end
+## 4. Directory tree
 
-    subgraph Primitive["Project primitive stage"]
-        E["imply.genlib"] --> F["IMPLY"]
-        E --> G["ZERO / CONST0"]
-    end
-
-    C --> H["lower INV x"]
-    H --> I["ZERO z"]
-    H --> K["IMPLY x z"]
-    I --> G
-    K --> F
+```text
+src/
+├── README.md                  ← you are here
+├── imply_sim.py               logic-level simulator for one crossbar row (IMPLY + FALSE)
+├── synthesis/
+│   ├── compile.py             one-circuit flow: Yosys → ABC → graph → sequence (+ cec checks)
+│   ├── sequencer.py           primitive graph → pulse program (cell reuse, pack_false)
+│   ├── dependency_graph.py    INV/helper expansion + dependency tree / DOT export
+│   ├── render_schedule_svg.py .seq.txt → C64-style operation schedule diagram (SVG / draw.io)
+│   ├── verify_netlist.py      mapped netlists vs Python golden models
+│   ├── run_synth.sh           batch Yosys+ABC front end for circuits/*.v
+│   ├── run_iscas85.py         batch compile.py over circuits/ISCAS85, writes results tables
+│   ├── imply.genlib           project primitive library: IMPLY + ZERO (2 gates, nothing else)
+│   ├── abc_imply.genlib       ABC adapter library: + INV (cost 2) + ONE, expanded after mapping
+│   ├── circuits/
+│   │   ├── gates/             single-gate smoke tests (and2, or2, xor2, not1)
+│   │   ├── arithmetic/        full_adder (main example), ripple4/8, sub4, mult2x2
+│   │   ├── combinational/     maj3, comp2, mux4, c17 (readable ISCAS'85 c17 rewrite)
+│   │   └── ISCAS85/           checked-in c17 … c7552 benchmark sources (literal, run_iscas85.py)
+│   ├── demo/                  extra demo inputs for compile.py (incl. a rejected sequential case)
+│   ├── tests/                 pytest suite for sequencer, graphs, renderer, ISCAS runner
+│   └── compiled/ out/ pre/    generated artifacts (gitignored — safe to delete)
+├── output/                    gitignored scratch space for anything a script generates
+│   ├── iscas85/                 default target of run_iscas85.py (results csv/md)
+│   └── benchmark/                default target of the local benchmark.py
+└── docs/
+    ├── README.md              index: worked examples, reports, docs conventions
+    ├── full_adder/README.md   worked example: full adder, stage by stage, with figures
+    ├── c17/README.md          second worked example: ISCAS'85 c17
+    ├── assets/                figures embedded by the worked-example READMEs (full_adder/ c17/)
+    ├── iscas85_schedules/     schedule diagrams for all 11 ISCAS'85 circuits (+ README)
+    ├── sequencing_optimization_report.md   26 → 20 step sequencing improvement (incl. ISCAS'85 before/after table)
+    └── document/
+        ├── false_packing_report.md   optimal FALSE packing + scheduling corners
+        └── comparison_simpler.md     comparison with SIMPLER MAGIC (TCAD'20)
 ```
 
-### Smoke results
+The ISCAS'85 result tables (before/after, `--unlimited-cells`) and the
+supervisor dashboard are not checked in — regenerate the tables anytime with
+`python3 synthesis/run_iscas85.py synthesis/circuits/ISCAS85` (writes to
+`output/iscas85/`).
 
-| Circuit | Role | ABC adapter map | Primitive dependency graph | Optimized sequence | Status |
-|---|---|---:|---:|---:|---|
-| `full_adder` | main explanatory case | 8 IMPLY + 4 INV | 12 IMPLY + 4 ZERO | 20 steps / 7 cells | PASS |
-| `c17` | first ISCAS'85 sanity check | 6 IMPLY + 4 INV | 10 IMPLY + 4 ZERO | 15 steps / 8 cells | PASS |
+Generated artifacts never land in `docs/` by default: `compile.py` writes to
+`synthesis/compiled/`, and `run_iscas85.py` / the local `benchmark.py` write
+to `output/` — both gitignored and safe to delete. A file only reaches
+`docs/assets/` when it is deliberately copied there because a README embeds
+it (see [docs/README.md](docs/README.md)).
 
-### Full-adder operation schedule
+## 5. External tools and environment
 
-This is an **operation schedule diagram**: rows are memristor cells, columns are
-pulse steps, `⊥` boxes are FALSE resets, and `IMP` boxes are IMPLY operations.
-The visual style follows the C64 paper's scheduling graph: each horizontal line
-shows one memristor's state over time, small boxes mark operations, local arrows
-show the source-to-destination information flow, and red labels mark final
-outputs. The figure is generated from the actual `compile.py` sequence output.
+Two external tools do the heavy lifting; everything else is plain Python.
 
-![Full adder IMPLY/FALSE operation schedule](docs/full_adder_schedule.svg)
+**Yosys** (frontend) — reads Verilog into its RTLIL netlist form and lowers it
+to generic single-bit gates: `read_verilog; hierarchy -auto-top; flatten;
+proc; opt; techmap; opt; write_blif`. The result (`pre.blif`) is
+technology-independent truth-table logic.
 
-### Printable 26-to-20 comparison handout
+**ABC** (mapper + prover, invoked as `yosys-abc`) — maps `pre.blif` onto the
+adapter cell library `abc_imply.genlib`. ABC's mapper needs helper cells such
+as an inverter, so the adapter adds `INV` with cost 2 (an INV later lowers to
+exactly two primitive operations); the compile flow expands all helpers back
+to IMPLY/ZERO right after mapping. ABC is also the formal-verification
+workhorse: every stage transition is checked with `cec`.
 
-For the supervisor discussion, this A4 printout places the old 26-step schedule
-and the optimized 20-step schedule on one page, with the exact scheduling change
-called out in the middle.
+To reproduce the environment:
 
-[Download the A4 PDF](docs/full_adder_26_to_20_a4.pdf)
-
-![Full adder 26-to-20 printable comparison](docs/full_adder_26_to_20_a4_preview.png)
-
-The sequencing optimization and the ISCAS'85 before/after table are summarized
-in [`docs/sequencing_optimization_report.md`](docs/sequencing_optimization_report.md).
-
-### Verification chain
-
-```mermaid
-flowchart LR
-    A["source circuit"] --> B["ABC mapped netlist"]
-    B --> C["ZERO/IMPLY primitive graph"]
-    C --> D["optimized pulse sequence"]
-
-    A -. "cec PASS" .- B
-    B -. "cec PASS" .- C
-    C -. "cec PASS" .- D
-    D -. "simulator PASS" .- E["truth-table vectors"]
-```
-
-| Check | What it proves | Current result |
+| requirement | version used here | install (macOS) |
 |---|---|---|
-| `python3 -m pytest synthesis/tests` | unit behavior for sequencer, dependency graph, benchmark runner, and schedule renderer helpers | 17 passed |
-| `python3 compile.py circuits/full_adder.v` | full adder source, primitive graph, and sequence are equivalent | PASS |
-| `python3 compile.py circuits/c17.v` | first ISCAS'85 smoke circuit is equivalent through the same flow | PASS |
-| `bash run_synth.sh && python3 verify_netlist.py` | all local ABC adapter netlists match Python golden models | all OK |
+| Python | ≥ 3.12 (3.14.6 here) | `brew install python` |
+| Yosys | 0.66 | `brew install yosys` |
+| ABC | bundled with Yosys as `yosys-abc` | comes with the above |
+| pytest | any recent | `pip install pytest` (tests only) |
 
-## what currently works
-
-```text
-Verilog / BLIF / BENCH
-  -> Yosys
-  -> generic BLIF
-  -> ABC with synthesis/abc_imply.genlib
-  -> adapter IMPLY/INV netlist
-  -> ZERO/IMPLY dependency graph
-  -> synthesis/sequencer.py
-  -> IMPLY/FALSE sequence
-  -> simulator sanity check
-  -> ABC cec equivalence checks
-```
-
-The project-facing primitive library is intentionally small:
-
-```genlib
-GATE IMPLY  1  O=!a+b;
-GATE ZERO   0  O=CONST0;
-```
-
-ABC's mapper currently expects helper cells such as `INV`, so the code uses
-`synthesis/abc_imply.genlib` as a tool adapter. Immediately after mapping,
-`compile.py` expands every helper back into a primitive dependency graph:
-`INV x` becomes `ZERO z; IMPLY x z`. The final graph and pulse program therefore
-use only the operations required by the project: `FALSE/CONST0` and `IMPLY`.
-
-### scheduling: optimal FALSE packing and two corners
-
-The sequencer's `pack_false` pass treats every requested reset as an interval
-of legal positions between the ops touching its cell and picks pulse times by
-minimum interval piercing, so the FALSE pulse count is provably minimal for
-the emitted IMPLY order (resets can split per cell and also move later to
-share a pulse). Two `compile.py` flags expose the latency/area trade-off:
-
-- `--unlimited-cells` -- no cell reuse, every reset packs into one upfront
-  FALSE pulse, so `steps = #IMPLY + 1` (the min-steps corner).
-- `--preserve-inputs` -- input cells are never overwritten or reclaimed; the
-  original operands stay readable after the computation.
-
-Results and the comparison against SIMPLER MAGIC (TCAD'20) live in
-`docs/iscas85_results_after.md` (min-cells), `docs/iscas85_results_unlimited.md`
-(min-steps), `docs/comparison_simpler.md`, and `docs/false_packing_report.md`.
-
-## files
-
-| path | role |
-|---|---|
-| `imply_sim.py` | logic-level simulator for one crossbar row |
-| `synthesis/imply.genlib` | project primitive library: `ZERO` + `IMPLY` |
-| `synthesis/abc_imply.genlib` | ABC adapter library used before primitive expansion |
-| `synthesis/dependency_graph.py` | expands helper gates and writes dependency tree/DOT views |
-| `synthesis/render_schedule_svg.py` | renders `.seq.txt` pulse programs as SVG operation schedule diagrams |
-| `synthesis/run_synth.sh` | batch front end for the small Verilog examples |
-| `synthesis/run_iscas85.py` | runs `compile.py` over an external ISCAS'85 Verilog directory |
-| `synthesis/verify_netlist.py` | checks mapped netlists against Python golden models |
-| `synthesis/sequencer.py` | lowers primitive dependency graphs to pulse programs |
-| `synthesis/compile.py` | one-circuit demo flow with ABC `cec` checks |
-| `synthesis/circuits/` | small Verilog inputs |
-| `synthesis/demo/` | extra demo inputs for `compile.py` |
-| `synthesis/tests/` | tests for the public pieces |
-
-## quick run
+No other Python dependencies are needed. Sanity-check your setup with:
 
 ```bash
-# simulator self-test
-python3 imply_sim.py
-
-# compile the smallest example
+python3 imply_sim.py                       # simulator self-test → ALL PASS
 cd synthesis
-python3 compile.py circuits/not1.v
-cat compiled/not1/not1.seq.txt
-
-# a less trivial example
-python3 compile.py circuits/full_adder.v
+python3 -m pytest tests                    # unit tests
+python3 compile.py circuits/gates/not1.v          # smallest example: FALSE [1]; IMPLY 0 -> 1
+python3 compile.py circuits/arithmetic/full_adder.v   # main example: 20 steps / 7 cells, all checks PASS
 ```
 
-For `not1.v`, the final sequence should be:
+## 6. Worked examples and reports (docs/)
 
-```text
-FALSE [1]
-IMPLY 0 -> 1
-```
+Start with **[docs/README.md](docs/README.md)**, the index for everything
+below. It links to:
 
-If input `a` is in cell `0`, resetting cell `1` and then applying
-`IMPLY 0 -> 1` stores `NOT a` in cell `1`.
+- **[docs/full_adder/README.md](docs/full_adder/README.md)** — walks the
+  `full_adder` through every stage of the pipeline with the actual artifacts:
+  the ABC netlist, the primitive dependency graph, the annotated 20-step
+  pulse schedule (including what every cell holds after every step), the
+  operation schedule diagram, and the scheduling-corner variants;
+- **[docs/c17/README.md](docs/c17/README.md)** — repeats the exercise on the
+  first ISCAS'85 circuit to show the flow is not full-adder-specific.
 
-For `full_adder.v`, `compile.py` also writes:
+Each worked example lives in its own `docs/<circuit>/` directory with one
+`README.md`; adding a new example follows the same pattern (see
+[docs/README.md](docs/README.md) for the convention).
 
-- `compiled/full_adder/dependency_tree.txt`
-- `compiled/full_adder/dependency_graph.dot`
+The deeper reports live next to them: sequencing optimization
+([26 → 20 steps, incl. the ISCAS'85 before/after table](docs/sequencing_optimization_report.md)),
+optimal FALSE packing ([report](docs/document/false_packing_report.md)), and the
+[SIMPLER MAGIC comparison](docs/document/comparison_simpler.md). The full
+ISCAS'85 result tables regenerate with
+`python3 synthesis/run_iscas85.py synthesis/circuits/ISCAS85`.
 
-These files show the explicit primitive graph used by the sequencer.
+## 7. Scheduling-mode quick reference (`full_adder` and `c17`)
 
-The README schedule figure can be regenerated with:
+`compile.py` takes two independent flags that trade cell count for step
+count (see [docs/full_adder/README.md](docs/full_adder/README.md) §8 for
+what each one means). All four combinations, run from `synthesis/`:
+
+| circuit | mode | command | steps | cells |
+|---|---|---|---:|---:|
+| `full_adder` | default (min-cells) | `python3 compile.py circuits/arithmetic/full_adder.v` | 20 | 7 |
+| `full_adder` | `--preserve-inputs` | `python3 compile.py circuits/arithmetic/full_adder.v --preserve-inputs` | 20 | 10 |
+| `full_adder` | `--unlimited-cells` | `python3 compile.py circuits/arithmetic/full_adder.v --unlimited-cells` | 17 | 11 |
+| `full_adder` | both flags | `python3 compile.py circuits/arithmetic/full_adder.v --preserve-inputs --unlimited-cells` | 18 | 12 |
+| `c17` | default (min-cells) | `python3 compile.py circuits/combinational/c17.v` | 15 | 8 |
+| `c17` | `--preserve-inputs` | `python3 compile.py circuits/combinational/c17.v --preserve-inputs` | 14 | 10 |
+| `c17` | `--unlimited-cells` | `python3 compile.py circuits/combinational/c17.v --unlimited-cells` | 13 | 11 |
+| `c17` | both flags | `python3 compile.py circuits/combinational/c17.v --preserve-inputs --unlimited-cells` | 13 | 11 |
+
+If plain `python3` does not resolve on your machine, run the same commands
+from the repo root with the full interpreter path instead (adjust the path
+to wherever your Python actually lives):
 
 ```bash
-python3 synthesis/render_schedule_svg.py \
-  synthesis/compiled/full_adder/full_adder.seq.txt \
-  docs/full_adder_schedule.svg \
-  --drawio docs/full_adder_schedule.drawio \
-  --export-with-drawio \
-  --title "Full adder IMPLY/FALSE schedule"
+cd "$(git rev-parse --show-toplevel)"
+
+# 1. default / min-cells
+/opt/homebrew/bin/python3.14 synthesis/compile.py synthesis/circuits/arithmetic/full_adder.v
+
+# 2. preserve-inputs
+/opt/homebrew/bin/python3.14 synthesis/compile.py synthesis/circuits/arithmetic/full_adder.v --preserve-inputs
+
+# 3. unlimited-cells / min-steps
+/opt/homebrew/bin/python3.14 synthesis/compile.py synthesis/circuits/arithmetic/full_adder.v --unlimited-cells
+
+# 4. preserve-inputs + unlimited-cells
+/opt/homebrew/bin/python3.14 synthesis/compile.py synthesis/circuits/arithmetic/full_adder.v --preserve-inputs --unlimited-cells
 ```
 
-## local toolchain
+Swap `full_adder.v` for `synthesis/circuits/combinational/c17.v` to run the
+same four modes on `c17`.
 
-- Python 3.14
-- Yosys
-- ABC through `yosys-abc`
-
-Generated directories such as `synthesis/pre/`, `synthesis/out/`, and
-`synthesis/compiled/` are ignored. They can be regenerated from the source
-files.
+Each run writes its own `<name>.seq.txt` and schedule diagram to
+`compiled/<name>/`; pass `-o some/path.seq.txt` to keep multiple modes side
+by side instead of overwriting the same output directory. Every row above
+was run fresh and passes all four `compile.py` checks (`cec` ×3 + simulator
+sanity).

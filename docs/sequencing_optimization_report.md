@@ -106,14 +106,14 @@ The full adder now drops from 26 to 20 steps.
 
 The updated schedule is generated from the actual sequence artifact:
 
-![Full adder 20-step schedule](full_adder_schedule.svg)
+![Full adder 20-step schedule](assets/full_adder/full_adder_schedule.svg)
 
 The dependency graph views are still available for explaining the adapter and
 primitive stages:
 
-![Adapter dependency graph](full_adder_dependency_graph.svg)
+![Adapter dependency graph](assets/full_adder/full_adder_dependency_graph.svg)
 
-![Primitive dependency graph](full_adder_primitive_dependency_graph.svg)
+![Primitive dependency graph](assets/full_adder/full_adder_primitive_dependency_graph.svg)
 
 ## 5. ISCAS'85 Before/After
 
@@ -140,10 +140,8 @@ the run after the change. Both use the same `compile.py` checks.
 | `c7552` | 3583 | 3190 | -393 (11.0% fewer) | 564 -> 717 | PASS |
 | `c880` | 716 | 631 | -85 (11.9% fewer) | 131 -> 160 | PASS |
 
-Full generated result files:
-
-- [Before run](iscas85_results_before.md)
-- [After run](iscas85_results_after.md)
+The full generated result tables are not checked in (regenerate them anytime
+with the command in §8 below); the table above has the complete numbers.
 
 ## 6. Local Benchmark Check
 
@@ -158,7 +156,8 @@ The local small-circuit benchmark also improves.
 | `c17` | 38 | 15 | 8 | OK |
 | `ripple8` | 463 | 199 | 49 | OK |
 
-The full local table is in [`synthesis/benchmark_report.md`](../synthesis/benchmark_report.md).
+The full local table regenerates with `python3 synthesis/benchmark.py`
+(writes to `output/benchmark/benchmark_report.md`, not checked in).
 
 ## 7. Tradeoff
 
@@ -202,8 +201,8 @@ set SRC synthesis/circuits/ISCAS85/c432.v
   python3 synthesis/compile.py $SRC
   python3 synthesis/render_schedule_svg.py \
         "synthesis/compiled/$CIRCUIT/$CIRCUIT.seq.txt" \
-        "docs/$CIRCUIT"_schedule.svg \
-        --drawio "docs/$CIRCUIT"_schedule.drawio \
+        "docs/assets/iscas85/$CIRCUIT"_schedule.svg \
+        --drawio "docs/assets/iscas85/$CIRCUIT"_schedule.drawio \
         --title "$CIRCUIT IMPLY/FALSE schedule"
 circuit : c432  (36 inputs, 7 outputs)
 abc map : 121 IMPLY + 61 INV
@@ -219,15 +218,15 @@ sequence: /Users/apple/Library/Mobile Documents/com~apple~CloudDocs/海德堡大
 
 To draw another circuit, change only the `set SRC ...` line.
 
-For example, use `set SRC synthesis/circuits/full_adder.v` for the local full
-adder, or `set SRC synthesis/circuits/ISCAS85/c432.v` for ISCAS'85 `c432`.
+For example, use `set SRC synthesis/circuits/arithmetic/full_adder.v` for the
+local full adder, or `set SRC synthesis/circuits/ISCAS85/c432.v` for
+ISCAS'85 `c432`.
 
 Run ISCAS'85 from the checked-in benchmark copy:
 
 The checked-in layout is flat: `synthesis/circuits/ISCAS85/<circuit>.v`.
 
 ```bash
-python3 synthesis/run_iscas85.py synthesis/circuits/ISCAS85 \
-  --csv docs/iscas85_results_after.csv \
-  --md docs/iscas85_results_after.md
+python3 synthesis/run_iscas85.py synthesis/circuits/ISCAS85
+# writes to output/iscas85/iscas85_results.{csv,md} by default
 ```

@@ -110,11 +110,15 @@ def main() -> None:
                         help="directory containing ISCAS'85 .v files")
     parser.add_argument("--timeout", type=int, default=180,
                         help="seconds per circuit")
-    parser.add_argument("--csv", type=Path, default=HERE / "iscas85_results.csv")
-    parser.add_argument("--md", type=Path, default=HERE / "iscas85_results.md")
+    parser.add_argument("--csv", type=Path,
+                        default=HERE.parent / "output" / "iscas85" / "iscas85_results.csv")
+    parser.add_argument("--md", type=Path,
+                        default=HERE.parent / "output" / "iscas85" / "iscas85_results.md")
     parser.add_argument("--unlimited-cells", action="store_true",
                         help="pass --unlimited-cells to compile.py")
     args = parser.parse_args()
+    args.csv.parent.mkdir(parents=True, exist_ok=True)
+    args.md.parent.mkdir(parents=True, exist_ok=True)
 
     files = sorted(args.iscas85_dir.glob("**/*.v"))
     if not files:

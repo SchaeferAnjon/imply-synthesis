@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1130 530" width="1130" height="530" role="img" aria-labelledby="title desc">
-<title id="title">Full adder IMPLY/FALSE schedule</title>
+<title id="title">c17 IMPLY/FALSE schedule (min-cells, 15 steps / 8 cells)</title>
 <desc id="desc">C64-style scheduling graph generated from the IMPLY/FALSE sequence artifact.</desc>
 <defs>
 <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,4 L0,8 Z" fill="#111111"/></marker>
@@ -54,6 +54,8 @@ text{font-family:Arial,Helvetica,sans-serif;fill:#111111}
 <text x="205" y="89" text-anchor="middle" class="false-label">⊥</text>
 <rect x="187.0" y="117.0" width="36" height="32" class="op"/>
 <text x="205" y="139" text-anchor="middle" class="false-label">⊥</text>
+<rect x="187.0" y="167.0" width="36" height="32" class="op"/>
+<text x="205" y="189" text-anchor="middle" class="false-label">⊥</text>
 <path d="M231.0,333 H259 V99.0" class="flow"/>
 <rect x="241.0" y="67.0" width="36" height="32" class="op"/>
 <text x="259" y="87" text-anchor="middle" class="op-label">IMP</text>
@@ -66,12 +68,10 @@ text{font-family:Arial,Helvetica,sans-serif;fill:#111111}
 <path d="M393.0,383 H421 V99.0" class="flow"/>
 <rect x="403.0" y="67.0" width="36" height="32" class="op"/>
 <text x="421" y="87" text-anchor="middle" class="op-label">IMP</text>
-<rect x="457.0" y="367.0" width="36" height="32" class="op"/>
-<text x="475" y="389" text-anchor="middle" class="false-label">⊥</text>
 <rect x="457.0" y="217.0" width="36" height="32" class="op"/>
 <text x="475" y="239" text-anchor="middle" class="false-label">⊥</text>
-<rect x="457.0" y="167.0" width="36" height="32" class="op"/>
-<text x="475" y="189" text-anchor="middle" class="false-label">⊥</text>
+<rect x="457.0" y="367.0" width="36" height="32" class="op"/>
+<text x="475" y="389" text-anchor="middle" class="false-label">⊥</text>
 <path d="M501.0,283 H529 V367.0" class="flow"/>
 <rect x="511.0" y="367.0" width="36" height="32" class="op"/>
 <text x="529" y="387" text-anchor="middle" class="op-label">IMP</text>
@@ -84,11 +84,11 @@ text{font-family:Arial,Helvetica,sans-serif;fill:#111111}
 <path d="M663.0,133 H691 V167.0" class="flow"/>
 <rect x="673.0" y="167.0" width="36" height="32" class="op"/>
 <text x="691" y="187" text-anchor="middle" class="op-label">IMP</text>
-<path d="M717.0,383 H745 V199.0" class="flow"/>
-<rect x="727.0" y="167.0" width="36" height="32" class="op"/>
-<text x="745" y="187" text-anchor="middle" class="op-label">IMP</text>
-<rect x="781.0" y="117.0" width="36" height="32" class="op"/>
-<text x="799" y="139" text-anchor="middle" class="false-label">⊥</text>
+<rect x="727.0" y="117.0" width="36" height="32" class="op"/>
+<text x="745" y="139" text-anchor="middle" class="false-label">⊥</text>
+<path d="M771.0,383 H799 V199.0" class="flow"/>
+<rect x="781.0" y="167.0" width="36" height="32" class="op"/>
+<text x="799" y="187" text-anchor="middle" class="op-label">IMP</text>
 <path d="M825.0,433 H853 V149.0" class="flow"/>
 <rect x="835.0" y="117.0" width="36" height="32" class="op"/>
 <text x="853" y="137" text-anchor="middle" class="op-label">IMP</text>

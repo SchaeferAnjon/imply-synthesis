@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 480" width="1400" height="480" role="img" aria-labelledby="title desc">
-<title id="title">full_adder IMPLY/FALSE schedule (20 steps, hoisted FALSE)</title>
+<title id="title">Full adder IMPLY/FALSE schedule (min-cells, 20 steps / 7 cells)</title>
 <desc id="desc">C64-style scheduling graph generated from the IMPLY/FALSE sequence artifact.</desc>
 <defs>
 <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,4 L0,8 Z" fill="#111111"/></marker>
@@ -100,11 +100,11 @@ text{font-family:Arial,Helvetica,sans-serif;fill:#111111}
 <path d="M987.0,383 H1015 V249.0" class="flow"/>
 <rect x="997.0" y="217.0" width="36" height="32" class="op"/>
 <text x="1015" y="237" text-anchor="middle" class="op-label">IMP</text>
-<path d="M1041.0,283 H1069 V249.0" class="flow"/>
-<rect x="1051.0" y="217.0" width="36" height="32" class="op"/>
-<text x="1069" y="237" text-anchor="middle" class="op-label">IMP</text>
-<rect x="1105.0" y="367.0" width="36" height="32" class="op"/>
-<text x="1123" y="389" text-anchor="middle" class="false-label">⊥</text>
+<rect x="1051.0" y="367.0" width="36" height="32" class="op"/>
+<text x="1069" y="389" text-anchor="middle" class="false-label">⊥</text>
+<path d="M1095.0,283 H1123 V249.0" class="flow"/>
+<rect x="1105.0" y="217.0" width="36" height="32" class="op"/>
+<text x="1123" y="237" text-anchor="middle" class="op-label">IMP</text>
 <path d="M1149.0,83 H1177 V367.0" class="flow"/>
 <rect x="1159.0" y="367.0" width="36" height="32" class="op"/>
 <text x="1177" y="387" text-anchor="middle" class="op-label">IMP</text>

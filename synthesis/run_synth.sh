@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Pipeline: Verilog --yosys--> BLIF --ABC(+abc_imply.genlib)--> adapter netlist
-# (the SIMPLER/Ben-Hur 2020 Fig.5 idea, but with NOR replaced by IMPLY)
+# 流水线：Verilog --yosys--> BLIF --ABC(+abc_imply.genlib)--> 适配网表
+# （思路来自 SIMPLER/Ben-Hur 2020 的图 5，这里用 IMPLY 替代 NOR）
 #
-# I keep three ABC scripts here because one script does not win on every small
-# circuit. The rough cost is IMPLY + 2*INV, since an INV later becomes
-# ZERO+IMPLY in the primitive dependency graph.
+# 这里保留三套 ABC 脚本，因为单一脚本并不能在所有小电路上都最优。
+# 粗略成本记作 IMPLY + 2*INV，因为 INV 在后续原语依赖图中会展开为
+# ZERO+IMPLY。
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -17,7 +17,7 @@ SCRIPTS=(
   "strash; dc2; dch -f; map -a"
 )
 
-cost_of() {  # rough pulse estimate for one mapped BLIF file
+cost_of() {  # 对单个映射后 BLIF 的粗略脉冲成本估算
   local ni nv
   ni=$(grep -c '^\.gate IMPLY' "$1" || true)
   nv=$(grep -c '^\.gate INV' "$1" || true)
@@ -25,13 +25,13 @@ cost_of() {  # rough pulse estimate for one mapped BLIF file
 }
 
 mkdir -p pre out
-for v in circuits/*.v; do
+for v in $(find circuits -name '*.v' -not -path 'circuits/ISCAS85/*' | sort); do
   name="$(basename "$v" .v)"
 
-  # Stage 1: yosys lowers Verilog to a generic BLIF file.
+  # 阶段 1：用 yosys 将 Verilog 降解为通用 BLIF。
   yosys -q -p "read_verilog $v; hierarchy -auto-top; flatten; proc; opt; techmap; opt; write_blif pre/$name.blif"
 
-  # Stage 2: ABC maps that BLIF into the adapter IMPLY/INV library.
+  # 阶段 2：用 ABC 把该 BLIF 映射到适配库（IMPLY/INV）。
   best_cost=999999; best_idx=0
   for idx in "${!SCRIPTS[@]}"; do
     "$ABC" -c "read_blif pre/$name.blif; read_genlib abc_imply.genlib; ${SCRIPTS[$idx]}; write_blif out/.$name.$idx.blif" >/dev/null
@@ -49,4 +49,4 @@ done
 
 echo "---"
 echo "netlists in out/*.blif; next: python3 verify_netlist.py"
-echo "for a single-circuit sequence demo, run: python3 compile.py circuits/not1.v"
+echo "for a single-circuit sequence demo, run: python3 compile.py circuits/gates/not1.v"

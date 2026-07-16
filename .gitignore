@@ -30,3 +30,11 @@ output/
 
 # Claude Code session data / worktrees (never commit)
 .claude/
+
+# local editor debug configs
+.vscode/
+
+# local working notes / code tours (Chinese, not part of the public release)
+process.md
+.tours/
+process.md
