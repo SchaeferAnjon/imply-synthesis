@@ -108,13 +108,6 @@ The updated schedule is generated from the actual sequence artifact:
 
 ![Full adder 20-step schedule](../assets/full_adder/full_adder_schedule.svg)
 
-The dependency graph views are still available for explaining the adapter and
-primitive stages:
-
-![Adapter dependency graph](../assets/full_adder/full_adder_dependency_graph.svg)
-
-![Primitive dependency graph](../assets/full_adder/full_adder_primitive_dependency_graph.svg)
-
 ## 5. ISCAS'85 Before/After
 
 Source circuits were taken from Fabian's suggested benchmark repository:

@@ -63,8 +63,6 @@ Reading the two outputs as human logic (`IMPLY(x, y) = ¬x ∨ y`):
   but there is no carry, or all three are 1", the textbook 3-input XOR
   decomposition.
 
-![Adapter dependency graph](../assets/full_adder/full_adder_dependency_graph.svg)
-
 ## 4. Lowering → primitive graph (12 IMPLY + 4 ZERO)
 
 The hardware has no INV gate. Each `INV x` is expanded into
@@ -77,8 +75,6 @@ new_n8 = IMPLY(new_n7, __zero_new_n8_1)
     new_n6 = IMPLY(cin, __zero_new_n6_0)
       __zero_new_n6_0 = ZERO
 ```
-
-![Primitive dependency graph](../assets/full_adder/full_adder_primitive_dependency_graph.svg)
 
 ## 5. Sequencer → 20 steps on 7 cells
 
