@@ -106,14 +106,14 @@ The full adder now drops from 26 to 20 steps.
 
 The updated schedule is generated from the actual sequence artifact:
 
-![Full adder 20-step schedule](assets/full_adder/full_adder_schedule.svg)
+![Full adder 20-step schedule](../assets/full_adder/full_adder_schedule.svg)
 
 The dependency graph views are still available for explaining the adapter and
 primitive stages:
 
-![Adapter dependency graph](assets/full_adder/full_adder_dependency_graph.svg)
+![Adapter dependency graph](../assets/full_adder/full_adder_dependency_graph.svg)
 
-![Primitive dependency graph](assets/full_adder/full_adder_primitive_dependency_graph.svg)
+![Primitive dependency graph](../assets/full_adder/full_adder_primitive_dependency_graph.svg)
 
 ## 5. ISCAS'85 Before/After
 
@@ -201,7 +201,7 @@ set SRC synthesis/circuits/ISCAS85/c432.v
   python3 synthesis/compile.py $SRC
   python3 synthesis/utils/render_schedule_svg.py \
         "synthesis/compiled/$CIRCUIT/$CIRCUIT.seq.txt" \
-        "docs/assets/iscas85/$CIRCUIT"_schedule.svg \
+        "docs/iscas85_schedules/$CIRCUIT"_schedule.svg \
         --title "$CIRCUIT IMPLY/FALSE schedule"
 circuit : c432  (36 inputs, 7 outputs)
 abc map : 121 IMPLY + 61 INV

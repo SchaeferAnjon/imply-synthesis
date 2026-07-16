@@ -24,7 +24,7 @@ keep into `docs/assets/<circuit>/` as a deliberate publishing step.
 
 | report | what it covers |
 |---|---|
-| [sequencing_optimization_report.md](sequencing_optimization_report.md) | the 26 → 20 step full_adder scheduling improvement |
+| [document/sequencing_optimization_report.md](document/sequencing_optimization_report.md) | the 26 → 20 step full_adder scheduling improvement |
 | [document/false_packing_report.md](document/false_packing_report.md) | optimal FALSE packing (`pack_false`) and the `--preserve-inputs` / `--unlimited-cells` scheduling corners |
 | [document/comparison_simpler.md](document/comparison_simpler.md) | comparison against SIMPLER MAGIC (TCAD'20) on ISCAS'85 |
 | [iscas85_schedules/](iscas85_schedules/README.md) | operation schedule diagrams for all 11 checked-in ISCAS'85 circuits |
@@ -41,10 +41,10 @@ python3 synthesis/run_iscas85.py synthesis/circuits/ISCAS85 --unlimited-cells
 
 ## Where generated figures go
 
-`render_schedule_svg.py`, `run_iscas85.py`, and friends never write into
+`utils/render_schedule_svg.py`, `run_iscas85.py`, and friends never write into
 `docs/` by default — their output goes to `output/` (gitignored, safe to
-delete, organized by kind: `output/iscas85/`, `output/benchmark/`, or
-whatever you point a one-off render at). `docs/assets/` only holds figures
+delete, organized by kind: `output/iscas85/`, or whatever you point a
+one-off render at). `docs/assets/` only holds figures
 that have been deliberately promoted there because a README embeds them.
 This keeps `docs/` a curated, stable set of narrative pages instead of a
 dumping ground for every regeneration.
@@ -60,8 +60,8 @@ docs/
 │   ├── full_adder/            figures embedded by full_adder/README.md
 │   └── c17/                   figures embedded by c17/README.md
 ├── iscas85_schedules/         schedule diagrams for all 11 ISCAS'85 circuits (+ own README)
-├── sequencing_optimization_report.md
 └── document/
+    ├── sequencing_optimization_report.md
     ├── false_packing_report.md
     └── comparison_simpler.md
 ```

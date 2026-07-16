@@ -151,7 +151,7 @@ red labels mark the final outputs. Generated from the sequence artifact by
 ![Full adder IMPLY/FALSE operation schedule](../assets/full_adder/full_adder_schedule.svg)
 
 The sequencing improvement that brought this schedule from 26 to 20 steps is
-documented in [sequencing_optimization_report.md](../sequencing_optimization_report.md),
+documented in [sequencing_optimization_report.md](../document/sequencing_optimization_report.md),
 with a printable side-by-side:
 [A4 PDF](../assets/full_adder/full_adder_26_to_20_a4.pdf) ·
 ![26 vs 20 preview](../assets/full_adder/full_adder_26_to_20_a4_preview.png)

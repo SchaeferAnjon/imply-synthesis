@@ -122,7 +122,7 @@ Current smoke results through `compile.py`:
 | `c17` | 6 IMPLY + 4 INV | 10 IMPLY + 4 ZERO | 15 steps / 8 cells |
 
 For the full before/after ISCAS'85 run, see
-`../docs/sequencing_optimization_report.md`.
+`../docs/document/sequencing_optimization_report.md`.
 
 ## current limits
 

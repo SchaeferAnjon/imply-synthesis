@@ -22,7 +22,7 @@ work and are not included in this snapshot.
 |---|---|
 | `full_adder`: 8 IMPLY + 4 INV after ABC → 12 IMPLY + 4 ZERO primitives → **20 steps / 7 cells** | [docs/full_adder/README.md](docs/full_adder/README.md) |
 | `c17` (first ISCAS'85 circuit): 6 IMPLY + 4 INV → 10 IMPLY + 4 ZERO → **15 steps / 8 cells** | [docs/c17/README.md](docs/c17/README.md) |
-| All 11 ISCAS'85 circuits compile and verify end-to-end (largest: `c6288`, 12422 naive → **4616** optimized steps) | [docs/sequencing_optimization_report.md](docs/sequencing_optimization_report.md) §5 |
+| All 11 ISCAS'85 circuits compile and verify end-to-end (largest: `c6288`, 12422 naive → **4616** optimized steps) | [docs/document/sequencing_optimization_report.md](docs/document/sequencing_optimization_report.md) §5 |
 | FALSE packing is provably minimal for the emitted IMPLY order (minimum interval piercing) | [docs/document/false_packing_report.md](docs/document/false_packing_report.md) |
 | Two scheduling corners expose the latency/area trade-off: `--unlimited-cells` (min steps) and `--preserve-inputs` (operands stay readable) | [docs/full_adder/README.md](docs/full_adder/README.md) §8 |
 | Comparison against SIMPLER MAGIC (TCAD'20) | [docs/document/comparison_simpler.md](docs/document/comparison_simpler.md) |
@@ -76,18 +76,17 @@ src/
 │   │   ├── combinational/     maj3, comp2, mux4, c17 (readable ISCAS'85 c17 rewrite)
 │   │   └── ISCAS85/           checked-in c17 … c7552 benchmark sources (literal, run_iscas85.py)
 │   ├── tests/                 pytest suite for sequencer, graphs, renderer, ISCAS runner
-│   └── compiled/ out/ pre/    generated artifacts (gitignored — safe to delete)
+│   └── compiled/              generated artifacts (gitignored — safe to delete)
 ├── output/                    gitignored scratch space for anything a script generates
-│   ├── iscas85/                 default target of run_iscas85.py (results csv/md)
-│   └── benchmark/                default target of the local benchmark.py
+│   └── iscas85/                 default target of run_iscas85.py (results csv/md)
 └── docs/
     ├── README.md              index: worked examples, reports, docs conventions
     ├── full_adder/README.md   worked example: full adder, stage by stage, with figures
     ├── c17/README.md          second worked example: ISCAS'85 c17
     ├── assets/                figures embedded by the worked-example READMEs (full_adder/ c17/)
     ├── iscas85_schedules/     schedule diagrams for all 11 ISCAS'85 circuits (+ README)
-    ├── sequencing_optimization_report.md   26 → 20 step sequencing improvement (incl. ISCAS'85 before/after table)
     └── document/
+        ├── sequencing_optimization_report.md   26 → 20 step sequencing improvement (incl. ISCAS'85 before/after table)
         ├── false_packing_report.md   optimal FALSE packing + scheduling corners
         └── comparison_simpler.md     comparison with SIMPLER MAGIC (TCAD'20)
 ```
@@ -98,10 +97,10 @@ supervisor dashboard are not checked in — regenerate the tables anytime with
 `output/iscas85/`).
 
 Generated artifacts never land in `docs/` by default: `compile.py` writes to
-`synthesis/compiled/`, and `run_iscas85.py` / the local `benchmark.py` write
-to `output/` — both gitignored and safe to delete. A file only reaches
-`docs/assets/` when it is deliberately copied there because a README embeds
-it (see [docs/README.md](docs/README.md)).
+`synthesis/compiled/`, and `run_iscas85.py` writes to `output/` — both
+gitignored and safe to delete. A file only reaches `docs/assets/` when it is
+deliberately copied there because a README embeds it (see
+[docs/README.md](docs/README.md)).
 
 ## 5. External tools and environment
 
@@ -156,7 +155,7 @@ Each worked example lives in its own `docs/<circuit>/` directory with one
 [docs/README.md](docs/README.md) for the convention).
 
 The deeper reports live next to them: sequencing optimization
-([26 → 20 steps, incl. the ISCAS'85 before/after table](docs/sequencing_optimization_report.md)),
+([26 → 20 steps, incl. the ISCAS'85 before/after table](docs/document/sequencing_optimization_report.md)),
 optimal FALSE packing ([report](docs/document/false_packing_report.md)), and the
 [SIMPLER MAGIC comparison](docs/document/comparison_simpler.md). The full
 ISCAS'85 result tables regenerate with
