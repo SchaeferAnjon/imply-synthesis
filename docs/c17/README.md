@@ -52,9 +52,9 @@ glance: 6 resets are packed into just 3 FALSE pulses, and the input cells for
 
 ![c17 IMPLY/FALSE operation schedule](../assets/c17/c17_schedule.svg)
 
-Schedule diagrams for the other ten ISCAS'85 circuits are collected in
-[../iscas85_schedules/](../iscas85_schedules/README.md). The full result
-table (all 11 circuits) regenerates in one command:
+Schedule diagrams for the other ten ISCAS'85 circuits regenerate next to
+their sequences in `synthesis/compiled/<circuit>/` when compiled. The full
+result table (all 11 circuits) regenerates in one command:
 `python3 synthesis/run_iscas85.py synthesis/circuits/ISCAS85`.
 
 ## 5. Reproduce

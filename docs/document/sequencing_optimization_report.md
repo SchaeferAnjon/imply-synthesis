@@ -194,7 +194,7 @@ set SRC synthesis/circuits/ISCAS85/c432.v
   python3 synthesis/compile.py $SRC
   python3 synthesis/utils/render_schedule_svg.py \
         "synthesis/compiled/$CIRCUIT/$CIRCUIT.seq.txt" \
-        "docs/iscas85_schedules/$CIRCUIT"_schedule.svg \
+        "output/$CIRCUIT"_schedule.svg \
         --title "$CIRCUIT IMPLY/FALSE schedule"
 circuit : c432  (36 inputs, 7 outputs)
 abc map : 121 IMPLY + 61 INV

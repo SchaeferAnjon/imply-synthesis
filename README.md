@@ -89,8 +89,8 @@ All 11 circuits, naive topological emission vs. optimized schedule
 | `c6288` | 12422 | **4616** | 741 | `█████████████░░░░░░` 63% |
 | `c7552` | 10014 | **3190** | 717 | `██████████████░░░░░` 68% |
 
-Schedule diagrams for all 11 circuits:
-[docs/iscas85_schedules/](docs/iscas85_schedules/README.md).
+Every circuit's schedule diagram regenerates next to its sequence in
+`synthesis/compiled/<circuit>/` when compiled.
 Comparison against SIMPLER MAGIC (TCAD'20), including where we win on latency
 (`c432`: 218 vs 237 cycles) and on cells (`c2670`: 367 vs 383):
 [docs/document/comparison_simpler.md](docs/document/comparison_simpler.md).

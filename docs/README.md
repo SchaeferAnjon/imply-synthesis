@@ -27,7 +27,6 @@ keep into `docs/assets/<circuit>/` as a deliberate publishing step.
 | [document/sequencing_optimization_report.md](document/sequencing_optimization_report.md) | the 26 → 20 step full_adder scheduling improvement |
 | [document/false_packing_report.md](document/false_packing_report.md) | optimal FALSE packing (`pack_false`) and the `--preserve-inputs` / `--unlimited-cells` scheduling corners |
 | [document/comparison_simpler.md](document/comparison_simpler.md) | comparison against SIMPLER MAGIC (TCAD'20) on ISCAS'85 |
-| [iscas85_schedules/](iscas85_schedules/README.md) | operation schedule diagrams for all 11 checked-in ISCAS'85 circuits |
 
 The full ISCAS'85 result tables (before/after the sequencing optimization,
 and the `--unlimited-cells` corner) and the one-page supervisor dashboard
@@ -59,7 +58,6 @@ docs/
 ├── assets/
 │   ├── full_adder/            figures embedded by full_adder/README.md
 │   └── c17/                   figures embedded by c17/README.md
-├── iscas85_schedules/         schedule diagrams for all 11 ISCAS'85 circuits (+ own README)
 └── document/
     ├── sequencing_optimization_report.md
     ├── false_packing_report.md
