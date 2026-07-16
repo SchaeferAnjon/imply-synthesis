@@ -16,7 +16,7 @@ robustness evaluation scripts are still local until I have discussed them.
 | `sequencer.py` | turns primitive dependency graphs into `FALSE` and `IMPLY` pulses |
 | `compile.py` | one-circuit flow, including ABC `cec` equivalence checks |
 | `utils/render_schedule_svg.py` | renders a `.seq.txt` into the operation schedule diagram (SVG) |
-| `verify/verify_netlist.py` | checks ABC output against small Python golden models |
+| `verify/verify_netlist.py` | parses ABC `.gate` BLIF and evaluates netlists |
 | `verify/sim_sanity.py` | simulates the pulse program and cross-checks it against the netlist |
 | `circuits/` | small Verilog inputs used while developing |
 | `tests/` | unit tests for the public code |
