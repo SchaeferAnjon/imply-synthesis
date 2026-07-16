@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from render_schedule_svg import parse_sequence, render_svg
+from utils.render_schedule_svg import parse_sequence, render_svg
 
 
 def test_c64_style_schedule_renderer_uses_local_flow_arrows(tmp_path: Path) -> None:

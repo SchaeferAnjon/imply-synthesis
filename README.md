@@ -45,7 +45,7 @@ circuit.v ──Yosys──▶ pre.blif ──ABC──▶ mapped.blif ──low
 |---|---|---|---|
 | frontend | Yosys | `.v` → `pre.blif` | parse, flatten, lower to generic single-bit gates |
 | mapping | ABC (`yosys-abc`) | `pre.blif` → `mapped.blif` | map onto `abc_imply.genlib` (IMPLY + INV helper); 3 scripts race, lowest cost wins |
-| lowering | `dependency_graph.py` | `mapped.blif` → primitive graph | every `INV x` becomes `ZERO z; IMPLY x z` — only project primitives remain |
+| lowering | `compile.py` | `mapped.blif` → primitive graph | every `INV x` becomes `ZERO z; IMPLY x z` — only project primitives remain |
 | scheduling | `sequencer.py` | primitive graph → `.seq.txt` | linear pulse program with cell reuse and optimal FALSE packing |
 | verification | ABC `cec` + `imply_sim.py` | every arrow above | formal equivalence at each stage + pulse-level simulation |
 
@@ -62,10 +62,11 @@ src/
 ├── synthesis/
 │   ├── compile.py             one-circuit flow: Yosys → ABC → graph → sequence (+ cec checks)
 │   ├── sequencer.py           primitive graph → pulse program (cell reuse, pack_false)
-│   ├── dependency_graph.py    INV/helper expansion + dependency tree / DOT export
-│   ├── render_schedule_svg.py .seq.txt → C64-style operation schedule diagram (SVG)
-│   ├── verify_netlist.py      mapped netlists vs Python golden models
-│   ├── run_synth.sh           batch Yosys+ABC front end for circuits/*.v
+│   ├── utils/
+│   │   └── render_schedule_svg.py  .seq.txt → C64-style operation schedule diagram (SVG)
+│   ├── verify/
+│   │   ├── verify_netlist.py  mapped netlists vs Python golden models
+│   │   └── sim_sanity.py      pulse-program simulation cross-check (exhaustive / sampled)
 │   ├── run_iscas85.py         batch compile.py over circuits/ISCAS85, writes results tables
 │   ├── imply.genlib           project primitive library: IMPLY + ZERO (2 gates, nothing else)
 │   ├── abc_imply.genlib       ABC adapter library: + INV (cost 2) + ONE, expanded after mapping
@@ -74,7 +75,6 @@ src/
 │   │   ├── arithmetic/        full_adder (main example), ripple4/8, sub4, mult2x2
 │   │   ├── combinational/     maj3, comp2, mux4, c17 (readable ISCAS'85 c17 rewrite)
 │   │   └── ISCAS85/           checked-in c17 … c7552 benchmark sources (literal, run_iscas85.py)
-│   ├── demo/                  extra demo inputs for compile.py (incl. a rejected sequential case)
 │   ├── tests/                 pytest suite for sequencer, graphs, renderer, ISCAS runner
 │   └── compiled/ out/ pre/    generated artifacts (gitignored — safe to delete)
 ├── output/                    gitignored scratch space for anything a script generates

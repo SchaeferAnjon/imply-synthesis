@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Verify ABC adapter netlists against small Python golden models.
+"""用小型 Python 参考模型验证 ABC 适配器网表。
 
-For every out/<name>.blif: parse the .gate netlist (IMPLY / INV / ZERO / ONE),
-evaluate it exhaustively over all input combinations, and compare with the
-golden model. Also report gate census and a serial step estimate
-(IMPLY = 1 step, INV = 2 steps: ZERO + IMPLY). This is a front-end check;
-the primitive dependency graph and exact pulse program come from compile.py.
+本脚本逐个读取 ``out/<name>.blif``：解析其中的 .gate 网表
+（IMPLY / INV / ZERO / ONE），穷举全部输入组合并与参考模型比较。
+它还会统计门数量，并给出串行步数估计（IMPLY 为 1 步，INV 为 2 步，
+即 ZERO + IMPLY）。这是前端网表检查；精确的原语图和脉冲程序由
+``compile.py`` 生成。
 """
 from itertools import product
 from pathlib import Path
@@ -14,7 +14,7 @@ OUT_DIR = Path(__file__).parent / "out"
 
 
 def _bits(env: dict[str, int], prefix: str, width: int) -> int:
-    """Collect bus bits env['p[0]']..env['p[w-1]'] into an int."""
+    """把环境中的总线位 ``prefix[0]`` 到 ``prefix[width-1]`` 组合成整数。"""
     value = 0
     for i in range(width):
         value += env[f"{prefix}[{i}]"] << i
@@ -22,6 +22,7 @@ def _bits(env: dict[str, int], prefix: str, width: int) -> int:
 
 
 def _unbits(value: int, prefix: str, width: int) -> dict[str, int]:
+    """把整数拆成 ``width`` 个低位优先的总线位字典。"""
     out = {}
     for i in range(width):
         out[f"{prefix}[{i}]"] = (value >> i) & 1
@@ -29,27 +30,33 @@ def _unbits(value: int, prefix: str, width: int) -> dict[str, int]:
 
 
 def g_not1(env):
+    """返回一位非门的参考输出。"""
     return {"y": 1 - env["a"]}
 
 
 def g_and2(env):
+    """返回两输入与门的参考输出。"""
     return {"y": env["a"] & env["b"]}
 
 
 def g_or2(env):
+    """返回两输入或门的参考输出。"""
     return {"y": env["a"] | env["b"]}
 
 
 def g_xor2(env):
+    """返回两输入异或门的参考输出。"""
     return {"y": env["a"] ^ env["b"]}
 
 
 def g_full_adder(env):
+    """返回一位全加器的和位与进位参考输出。"""
     s = env["a"] + env["b"] + env["cin"]
     return {"sum": s & 1, "cout": s >> 1}
 
 
 def g_ripple4(env):
+    """返回四位 ripple-carry 加法器的参考输出。"""
     s = _bits(env, "a", 4) + _bits(env, "b", 4) + env["cin"]
     out = _unbits(s & 0xF, "s", 4)
     out["cout"] = (s >> 4) & 1
@@ -57,6 +64,7 @@ def g_ripple4(env):
 
 
 def g_sub4(env):
+    """返回四位无符号减法器的差值与借位参考输出。"""
     a, b = _bits(env, "a", 4), _bits(env, "b", 4)
     out = _unbits((a - b) & 0xF, "d", 4)
     out["bout"] = int(a < b)
@@ -64,14 +72,17 @@ def g_sub4(env):
 
 
 def g_mult2x2(env):
+    """返回两个两位无符号数相乘得到的四位参考输出。"""
     return _unbits((_bits(env, "a", 2) * _bits(env, "b", 2)) & 0xF, "p", 4)
 
 
 def g_mux4(env):
+    """返回四选一多路复用器的参考输出。"""
     return {"y": env[f"d[{_bits(env, 's', 2)}]"]}
 
 
 def g_c17(env):
+    """返回 ISCAS'85 c17 基准电路的 NAND 网络参考输出。"""
     n10 = 1 - (env["N1"] & env["N3"])
     n11 = 1 - (env["N3"] & env["N6"])
     n16 = 1 - (env["N2"] & n11)
@@ -80,16 +91,19 @@ def g_c17(env):
 
 
 def g_maj3(env):
+    """返回三输入多数表决器的参考输出。"""
     a, b, c = env["a"], env["b"], env["c"]
     return {"y": (a & b) | (a & c) | (b & c)}
 
 
 def g_comp2(env):
+    """返回两个两位无符号数的相等与小于比较结果。"""
     a, b = _bits(env, "a", 2), _bits(env, "b", 2)
     return {"eq": int(a == b), "lt": int(a < b)}
 
 
 def g_ripple8(env):
+    """返回八位 ripple-carry 加法器的参考输出。"""
     s = _bits(env, "a", 8) + _bits(env, "b", 8) + env["cin"]
     out = _unbits(s & 0xFF, "s", 8)
     out["cout"] = (s >> 8) & 1
@@ -105,10 +119,13 @@ GOLDEN = {
 
 
 def parse_blif(path: Path):
-    """Return (inputs, outputs, gates). gates = list of (type, pin_map)."""
+    """读取 BLIF 文件，返回 ``(inputs, outputs, gates)``。
+
+    ``inputs`` 和 ``outputs`` 是网络名列表；``gates`` 中每一项都是
+    ``(门类型, 引脚映射)``，例如 ``("IMPLY", {"a": "x", "b": "y", "O": "z"})``。
+    """
     text = path.read_text()
-    # BLIF uses a backslash when one logical line continues on the next line.
-    # Joining them here keeps the later parser boring.
+    # BLIF 用反斜杠表示逻辑行延续到下一物理行；先合并以简化后续解析。
     lines = []
     for raw in text.splitlines():
         if lines and lines[-1].endswith("\\"):
@@ -117,16 +134,17 @@ def parse_blif(path: Path):
             lines.append(raw.strip())
 
     inputs, outputs, gates = [], [], []
-    names_pending = None  # handle constant .names blocks from yosys/abc
+    names_pending = None  # 暂存 Yosys/ABC 输出的常量 .names 块。
     for line in lines:
         if names_pending is not None:
-            # A .names with no input is a constant driver. The next line tells
-            # us whether it is const1; otherwise I treat it as const0.
+            # 没有输入的 .names 是常量驱动器；下一行若为 1 则是常量 1，
+            # 其他情况按常量 0 处理。
             if line == "1":
                 const_type = "ONE"
             else:
                 const_type = "ZERO"
             gates.append((const_type, {"O": names_pending}))
+                # 这个门的输出常量是1 or 0. 
             names_pending = None
             if line in ("1", "0", ""):
                 continue
@@ -144,8 +162,8 @@ def parse_blif(path: Path):
                 pins[name] = value
             gates.append((tok[1], pins))
         elif tok[0] == ".barbuf":
-            # ABC sometimes collapses a signal to a passthrough, for example
-            # y = a & a. This is not a real pulse later; it is just an alias.
+            # ABC 有时会把信号折叠为透传，例如 y = a & a。
+            # 它不是后续要执行的真实脉冲，只是同一值的别名。
             gates.append(("BUF", {"a": tok[1], "O": tok[2]}))
         elif tok[0] == ".latch":
             raise ValueError(f"{path.name}: sequential circuit (.latch), "
@@ -158,7 +176,10 @@ def parse_blif(path: Path):
 
 
 def eval_netlist(inputs, gates, env):
-    """Iteratively evaluate gates until all nets resolve (order-independent)."""
+    """迭代计算网表，直到所有门的输出都可解析。
+
+    门列表不要求已经按拓扑顺序排列；每轮只计算输入值已就绪的门。
+    """
     net = dict(env)
     pending = list(gates)
     while pending:
@@ -195,6 +216,7 @@ def eval_netlist(inputs, gates, env):
 
 
 def main():
+    """逐个验证 ``out`` 目录中的基准网表，并打印统计表。"""
     rows = []
     for name, golden in GOLDEN.items():
         blif = OUT_DIR / f"{name}.blif"
@@ -222,7 +244,7 @@ def main():
                     break
             if not ok:
                 break
-        est = n_imply + 2 * n_inv  # serial estimate, pre-sequencer
+        est = n_imply + 2 * n_inv  # 调度前的串行估计值。
         if ok:
             mark = "OK"
         else:

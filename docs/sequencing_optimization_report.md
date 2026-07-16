@@ -199,7 +199,7 @@ set SRC synthesis/circuits/ISCAS85/c432.v
   set CIRCUIT (basename $SRC .v)
 
   python3 synthesis/compile.py $SRC
-  python3 synthesis/render_schedule_svg.py \
+  python3 synthesis/utils/render_schedule_svg.py \
         "synthesis/compiled/$CIRCUIT/$CIRCUIT.seq.txt" \
         "docs/assets/iscas85/$CIRCUIT"_schedule.svg \
         --title "$CIRCUIT IMPLY/FALSE schedule"

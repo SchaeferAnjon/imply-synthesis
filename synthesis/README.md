@@ -12,14 +12,13 @@ robustness evaluation scripts are still local until I have discussed them.
 |---|---|
 | `imply.genlib` | project primitive library: `ZERO` + `IMPLY` |
 | `abc_imply.genlib` | ABC adapter library: `IMPLY` plus temporary mapping helpers |
-| `dependency_graph.py` | expands helpers into a primitive dependency graph and exports tree/DOT views |
-| `run_synth.sh` | runs Yosys and ABC for every circuit in `circuits/` |
 | `run_iscas85.py` | runs `compile.py` over an external ISCAS'85 Verilog directory |
-| `verify_netlist.py` | checks ABC output against small Python golden models |
 | `sequencer.py` | turns primitive dependency graphs into `FALSE` and `IMPLY` pulses |
 | `compile.py` | one-circuit flow, including ABC `cec` equivalence checks |
+| `utils/render_schedule_svg.py` | renders a `.seq.txt` into the operation schedule diagram (SVG) |
+| `verify/verify_netlist.py` | checks ABC output against small Python golden models |
+| `verify/sim_sanity.py` | simulates the pulse program and cross-checks it against the netlist |
 | `circuits/` | small Verilog inputs used while developing |
-| `demo/` | extra inputs for manual demos |
 | `tests/` | unit tests for the public code |
 
 ## the primitive library
@@ -43,7 +42,7 @@ GATE ZERO   0  O=CONST0;
 GATE ONE    0  O=CONST1;
 ```
 
-Immediately after ABC mapping, `dependency_graph.py` rewrites helpers back into
+Immediately after ABC mapping, `compile.py` rewrites helpers back into
 the primitive graph. For example, one `INV x` becomes:
 
 ```text
@@ -99,27 +98,10 @@ python3.14 compile.py circuits/arithmetic/full_adder.v --preserve-inputs   # inp
 python3.14 compile.py circuits/arithmetic/full_adder.v --unlimited-cells   # fewest steps: one upfront FALSE
 ```
 
-For a nontrivial circuit such as `full_adder.v`, it also writes:
-
-```text
-compiled/full_adder/dependency_tree.txt
-compiled/full_adder/dependency_graph.dot
-```
-
-These files make the scheduling input explicit. The current full-adder shape is
+It also writes the operation schedule diagram next to the sequence
+(`compiled/<circuit>/<circuit>_schedule.svg`). The current full-adder shape is
 an ABC adapter netlist of `8 IMPLY + 4 INV`, expanded to a primitive graph of
 `12 IMPLY + 4 ZERO` before sequencing.
-
-## batch front end
-
-```bash
-bash run_synth.sh
-python3.14 verify_netlist.py
-```
-
-This regenerates `pre/*.blif` and `out/*.blif`, then checks that the ABC adapter
-netlists compute the same functions as the Python golden models. For the
-primitive dependency graph and actual pulse sequence, use `compile.py`.
 
 ## benchmark direction
 

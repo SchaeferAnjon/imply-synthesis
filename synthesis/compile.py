@@ -4,8 +4,8 @@
 用法:
     python3 compile.py <circuit.v | .blif | .bench> [-o out.seq.txt]
 
-这是演示入口文件。它和 run_synth.sh 走同一套前端流程，
-但只处理一个电路，并在关键阶段调用 ABC 的 cec 做等价检查，
+这是演示入口文件。它一次处理一个电路，
+并在关键阶段调用 ABC 的 cec 做等价检查，
 避免把“穷举仿真”当成可无限扩展的验证方式。
 Combinational Equivalence Checking (CEC) 是 ABC 的一个功能，能在不穷举输入向量的情况下判断两个组合逻辑网表是否等价。
     输入 --yosys--> pre.blif --ABC 脚本组合--> mapped.blif（适配库网表）
@@ -24,28 +24,33 @@ Combinational Equivalence Checking (CEC) 是 ABC 的一个功能，能在不穷�
 范围：仅组合逻辑（Project 9）。遇到时序电路会直接给出明确错误信息。
 """
 import argparse
-import random
 import subprocess
 import sys
-from itertools import product
 from pathlib import Path
 
 HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parent))
 
-from imply_sim import CrossbarRow
-from render_schedule_svg import parse_sequence, render_svg
 from sequencer import Program, Sequencer
-from verify_netlist import eval_netlist, parse_blif
+from utils.render_schedule_svg import parse_sequence, render_svg
+from verify.sim_sanity import sim_sanity
+from verify.verify_netlist import parse_blif
 
 ABC_SCRIPTS = [
+    # 快速流程：结构化 + dc2 + 映射，速度优先。
     "strash; dc2; map -a",
+    # 深度流程：多轮 balance/rewrite/refactor/dch，再映射。
+    # 这里写成两段相邻字符串仅为换行可读性；Python 会自动拼接。
     "strash; balance; rewrite; refactor; balance; rewrite; rewrite -z; "
     "balance; refactor -z; rewrite -z; balance; dch -f; map -a",
+    # 中等流程：在快速流程基础上加入 dch，折中质量与开销。
     "strash; dc2; dch -f; map -a",
 ]
-IMPLY_CUBES = ["0- 1", "-1 1"]          # O = !a + b
+
+# BLIF `.names a b O` 的 on-set cubes，编码 O = (!a) | b。
+# "0- 1" 表示 a=0（b 任意）时 O=1；"-1 1" 表示 b=1（a 任意）时 O=1。
+IMPLY_CUBES = ["0- 1", "-1 1"]
 
 
 def _safe(name: str) -> str:
@@ -64,19 +69,23 @@ def _zero_name(out: str, index: int) -> str:
 
 def expand_to_primitives(gates: list[tuple[str, dict[str, str]]]
                          ) -> list[tuple[str, dict[str, str]]]:
-    """Lower helper gates to the ZERO/IMPLY primitive set used by scheduler."""
+    """将辅助门降级到调度器使用的ZERO/IMPLY原语集。"""
     primitive: list[tuple[str, dict[str, str]]] = []
     zero_index = 0
     for typ, pins in gates:
         if typ in ("IMPLY", "ZERO", "BUF"):
+            # 这些门已经属于调度器可直接处理的原语集合，原样保留。
             primitive.append((typ, dict(pins)))
         elif typ == "INV":
+            # INV(a) = IMPLY(a, 0)：先造一个常量 0，再做一次 IMPLY。
             z = _zero_name(pins["O"], zero_index)
             zero_index += 1
             primitive.append(("ZERO", {"O": z}))
             primitive.append(("IMPLY", {"a": pins["a"], "b": z,
                                          "O": pins["O"]}))
         elif typ == "ONE":
+            # ONE 需要在只支持 ZERO/IMPLY 的集合里构造：
+            # 先得到两个 0，再用 IMPLY(0, 0)=1 产生常量 1。
             z_src = _zero_name(pins["O"], zero_index)
             zero_index += 1
             z_dst = _zero_name(pins["O"], zero_index)
@@ -133,7 +142,7 @@ def to_pre_blif(src: Path, work: Path) -> Path:
                  "or extract the combinational core.")
     return pre
 
-
+# abc最终给的调度器什么东西.生成gate mapping.
 def abc_portfolio(work: Path) -> Path:
     """用 3 套 ABC 脚本做小型组合搜索，选出最优 mapped.blif。"""
     best_cost, best = None, None
@@ -214,50 +223,6 @@ def cec(work: Path, f1: str, f2: str) -> bool:
     if "NOT EQUIVALENT" in out.upper():
         return False
     raise RuntimeError(f"cec inconclusive:\n{out}")
-
-
-def run_program(prog: Program, env: dict[str, int]) -> tuple[dict[str, int], int]:
-    """在逻辑层模拟器上执行生成的 IMPLY/FALSE 程序。"""
-    cells = [0] * prog.n_cells
-    for net, c in prog.in_cell.items():
-        cells[c] = env[net]
-    row = CrossbarRow(cells=cells)
-    for op in prog.ops:
-        if op[0] == "FALSE":
-            row.false_reset(op[1])
-        else:
-            row.imply(op[1], op[2])
-    result = {}
-    for out_name, cell in prog.out_cell.items():
-        result[out_name] = row.cells[cell]
-    return result, row.steps
-
-
-def sim_sanity(prog: Program, inputs: list[str], outputs: list[str],
-               gates: list[tuple]) -> tuple[bool, int]:
-    """用仿真交叉检查程序输出与网表输出是否一致。"""
-    if len(inputs) <= 12:
-        # 输入位数不大时直接穷举。
-        vectors = list(product((0, 1), repeat=len(inputs)))
-    else:
-        # 输入位数大时固定种子随机采样，保证可复现。
-        rng = random.Random(20260611)
-        vectors = []
-        for _ in range(1000):
-            bits = []
-            for _name in inputs:
-                bits.append(rng.randint(0, 1))
-            vectors.append(tuple(bits))
-    for bits in vectors:
-        env = {}
-        for i, name in enumerate(inputs):
-            env[name] = bits[i]
-        got, _ = run_program(prog, env)
-        want = eval_netlist(inputs, gates, env)
-        for out_name in outputs:
-            if got[out_name] != want[out_name]:
-                return False, len(vectors)
-    return True, len(vectors)
 
 
 def write_schedule_graphs(seq_path: Path) -> Path:
