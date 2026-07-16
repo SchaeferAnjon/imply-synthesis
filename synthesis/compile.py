@@ -35,7 +35,7 @@ sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parent))
 
 from imply_sim import CrossbarRow
-from render_schedule_svg import parse_sequence, render_drawio, render_svg
+from render_schedule_svg import parse_sequence, render_svg
 from sequencer import Program, Sequencer
 from verify_netlist import eval_netlist, parse_blif
 
@@ -260,21 +260,19 @@ def sim_sanity(prog: Program, inputs: list[str], outputs: list[str],
     return True, len(vectors)
 
 
-def write_schedule_graphs(seq_path: Path) -> tuple[Path, Path]:
-    """基于 .seq.txt 自动生成调度图（drawio + svg）。"""
+def write_schedule_graphs(seq_path: Path) -> Path:
+    """基于 .seq.txt 自动生成调度图（svg）。"""
     seq_name = seq_path.name
     if seq_name.endswith(".seq.txt"):
         base = seq_name[:-8]
     else:
         base = seq_path.stem
-    drawio_path = seq_path.parent / f"{base}_schedule.drawio"
     svg_path = seq_path.parent / f"{base}_schedule.svg"
 
     inputs, outputs, ops, n_cells = parse_sequence(seq_path)
     title = f"{base} IMPLY/FALSE schedule"
-    drawio_path.write_text(render_drawio(title, inputs, outputs, ops, n_cells))
     svg_path.write_text(render_svg(title, inputs, outputs, ops, n_cells))
-    return drawio_path, svg_path
+    return svg_path
 
 
 def main() -> None:
@@ -357,7 +355,7 @@ def main() -> None:
         lines.append(line)
         step_no += 1
     seq_path.write_text("\n".join(lines) + "\n")
-    drawio_path, svg_path = write_schedule_graphs(seq_path)
+    svg_path = write_schedule_graphs(seq_path)
 
     print(f"circuit : {name}  ({len(inputs)} inputs, {len(outputs)} outputs)")
     netlist_line = f"abc map : {census['IMPLY']} IMPLY + {census['INV']} INV"
@@ -380,8 +378,7 @@ def main() -> None:
             mark = "  FAIL"
         print(f"{mark}  {k}")
     print(f"sequence: {seq_path}")
-    print(f"schedule drawio: {drawio_path}")
-    print(f"schedule svg   : {svg_path}")
+    print(f"schedule svg: {svg_path}")
     all_ok = True
     for ok in v.values():
         if not ok:

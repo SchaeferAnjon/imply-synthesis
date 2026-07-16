@@ -1,30 +1,18 @@
 #!/usr/bin/env python3
-"""Render an IMPLY/FALSE sequence as draw.io and SVG schedule diagrams.
+"""Render an IMPLY/FALSE sequence as an SVG schedule diagram.
 
-The source of truth is compile.py's .seq.txt artifact. The generated .drawio
-file can be opened in diagrams.net, while the SVG is suitable for README
-embedding on GitHub.
+The source of truth is compile.py's .seq.txt artifact. The SVG is suitable
+for README embedding on GitHub.
 """
 import argparse
 import ast
 import html
 import re
-import shutil
-import subprocess
-from datetime import datetime, timezone
 from pathlib import Path
-from xml.etree.ElementTree import Element, SubElement, tostring
 
 
 FALSE_RE = re.compile(r"^\s*(\d+)\s+FALSE\s+(\[.*\])\s*$")
 IMPLY_RE = re.compile(r"^\s*(\d+)\s+IMPLY\s+(\d+)\s+->\s+(\d+)\s*$")
-DRAWIO_TEXT_WARNING = (
-    '<switch><g requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility"/>'
-    '<a transform="translate(0,-5)" '
-    'xlink:href="https://www.drawio.com/doc/faq/svg-export-text-problems" '
-    'target="_blank"><text text-anchor="middle" font-size="10px" x="50%" '
-    'y="100%">Text is not SVG - cannot display</text></a></switch>'
-)
 
 
 def parse_sequence(path: Path):
@@ -234,207 +222,16 @@ def render_svg(title: str, inputs: dict[str, int], outputs: dict[str, int],
     return "\n".join(out) + "\n"
 
 
-def mx_geometry(parent, x, y, w, h):
-    SubElement(parent, "mxGeometry", {
-        "x": str(x), "y": str(y), "width": str(w), "height": str(h),
-        "as": "geometry",
-    })
-
-
-def mx_absolute_edge(root, cell_id, points, style, parent="1"):
-    cell = SubElement(root, "mxCell", {
-        "id": str(cell_id),
-        "value": "",
-        "style": style,
-        "parent": parent,
-        "edge": "1",
-    })
-    geom = SubElement(cell, "mxGeometry", {"relative": "1", "as": "geometry"})
-    SubElement(geom, "mxPoint", {
-        "x": str(points[0][0]), "y": str(points[0][1]), "as": "sourcePoint",
-    })
-    if len(points) > 2:
-        arr = SubElement(geom, "Array", {"as": "points"})
-        for x, y in points[1:-1]:
-            SubElement(arr, "mxPoint", {"x": str(x), "y": str(y)})
-    SubElement(geom, "mxPoint", {
-        "x": str(points[-1][0]), "y": str(points[-1][1]), "as": "targetPoint",
-    })
-
-
-def mx_cell(root, cell_id, value="", style="", vertex=False, edge=False,
-            parent="1", source=None, target=None, x=0, y=0, w=0, h=0):
-    attrs = {"id": str(cell_id), "value": value, "style": style, "parent": parent}
-    if vertex:
-        attrs["vertex"] = "1"
-    if edge:
-        attrs["edge"] = "1"
-    if source is not None:
-        attrs["source"] = str(source)
-    if target is not None:
-        attrs["target"] = str(target)
-    cell = SubElement(root, "mxCell", attrs)
-    if vertex:
-        mx_geometry(cell, x, y, w, h)
-    elif edge:
-        geom = SubElement(cell, "mxGeometry", {"relative": "1", "as": "geometry"})
-        SubElement(geom, "Array", {"as": "points"})
-    return cell
-
-
-def render_drawio(title: str, inputs: dict[str, int], outputs: dict[str, int],
-                  ops: list[tuple], n_cells: int) -> str:
-    rows, y_for, x_for, width, height, left, _top, _step_w, _row_h, right = (
-        build_geometry(inputs, outputs, ops, n_cells)
-    )
-    box_w, box_h = 36, 32
-    axis_y = height - 44
-    line_start = left - 56
-    line_end = width - right
-    root_file = Element("mxfile", {
-        "host": "app.diagrams.net",
-        "modified": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
-        "agent": "Codex generated C64-style schedule",
-        "version": "24.7.17",
-    })
-    diagram = SubElement(root_file, "diagram", {"name": "full_adder_schedule"})
-    model = SubElement(diagram, "mxGraphModel", {
-        "dx": str(width), "dy": str(height), "grid": "1", "gridSize": "10",
-        "guides": "1", "tooltips": "1", "connect": "1", "arrows": "1",
-        "fold": "1", "page": "1", "pageScale": "1",
-        "pageWidth": str(width), "pageHeight": str(height), "math": "0",
-        "shadow": "0",
-    })
-    root = SubElement(model, "root")
-    SubElement(root, "mxCell", {"id": "0"})
-    SubElement(root, "mxCell", {"id": "1", "parent": "0"})
-
-    next_id = 2
-    outputs_by_cell = {}
-    for name, cell in outputs.items():
-        outputs_by_cell.setdefault(cell, []).append(name)
-
-    mx_cell(root, next_id, "",
-            "rounded=0;whiteSpace=wrap;html=0;fillColor=#ffffff;strokeColor=none;",
-            vertex=True, x=0, y=0, w=width, h=height)
-    next_id += 1
-
-    for cell in rows:
-        y = y_for[cell]
-        _label, _cell_id, kind = row_label(cell, inputs, outputs)
-        label = graph_row_label(cell, inputs, outputs)
-        fill = {
-            "work": "#ef9a9a",
-            "input": "#c7e8f6",
-            "output": "#d8efd2",
-            "io": "#c7e8f6",
-        }[role_class(kind)]
-        badge_x = line_start - 28
-        mx_cell(root, next_id, label,
-                "ellipse;whiteSpace=wrap;html=0;fontStyle=1;fontSize=15;"
-                f"fillColor={fill};strokeColor=#111111;strokeWidth=2;",
-                vertex=True, x=badge_x - 16, y=y - 16, w=32, h=32)
-        next_id += 1
-        mx_absolute_edge(
-            root, next_id,
-            [(line_start - 8, y), (line_end, y)],
-            "endArrow=none;html=0;rounded=0;strokeWidth=2;strokeColor=#111111;",
-        )
-        next_id += 1
-        if cell in outputs_by_cell:
-            mx_cell(root, next_id, " / ".join(name.capitalize() for name in outputs_by_cell[cell]),
-                    "text;html=0;strokeColor=none;fillColor=none;fontColor=#ff0000;"
-                    "fontSize=20;fontStyle=3;align=left;verticalAlign=middle;",
-                    vertex=True, x=line_end + 16, y=y - 24, w=96, h=28)
-            next_id += 1
-
-    for op in ops:
-        if op[0] == "FALSE":
-            _, step, cells = op
-            x = x_for[step]
-            for cell in cells:
-                y = y_for[cell]
-                mx_cell(root, next_id, "⊥",
-                        "rounded=0;whiteSpace=wrap;html=0;fontStyle=1;fontSize=18;"
-                        "fillColor=#dcead7;strokeColor=#111111;strokeWidth=3;",
-                        vertex=True, x=x - box_w / 2, y=y - box_h / 2, w=box_w, h=box_h)
-                next_id += 1
-        else:
-            _, step, src, dst = op
-            x = x_for[step]
-            y_src = y_for[src]
-            y_dst = y_for[dst]
-            target_y = y_dst - box_h / 2 if y_src < y_dst else y_dst + box_h / 2
-            mx_absolute_edge(
-                root, next_id,
-                [(x - box_w / 2 - 10, y_src), (x, y_src), (x, target_y)],
-                "endArrow=classic;html=0;rounded=0;strokeWidth=2;strokeColor=#111111;endSize=6;",
-            )
-            next_id += 1
-            mx_cell(root, next_id, "IMP",
-                    "rounded=0;whiteSpace=wrap;html=0;fontStyle=1;fontSize=11;"
-                    "fillColor=#dcead7;strokeColor=#111111;strokeWidth=3;",
-                    vertex=True, x=x - box_w / 2, y=y_dst - box_h / 2, w=box_w, h=box_h)
-            next_id += 1
-
-    mx_absolute_edge(
-        root, next_id,
-        [(line_start - 48, axis_y), (line_end, axis_y)],
-        "endArrow=classic;html=0;rounded=0;strokeWidth=1.5;strokeColor=#111111;endSize=6;",
-    )
-    next_id += 1
-    mx_cell(root, next_id, "Steps",
-            "text;html=0;strokeColor=none;fillColor=none;fontSize=17;fontStyle=1;align=left;",
-            vertex=True, x=line_start - 38, y=axis_y + 5, w=70, h=28)
-    next_id += 1
-    for step in range(1, len(ops) + 1):
-        mx_cell(root, next_id, str(step),
-                "text;html=0;strokeColor=none;fillColor=none;fontSize=14;align=center;",
-                vertex=True, x=x_for[step] - 12, y=axis_y + 6, w=24, h=24)
-        next_id += 1
-
-    return tostring(root_file, encoding="unicode") + "\n"
-
-
-def clean_drawio_svg(path: Path) -> None:
-    path.write_text(path.read_text().replace(DRAWIO_TEXT_WARNING, ""))
-
-
-def export_drawio_svg(drawio_path: Path, svg_path: Path) -> None:
-    if shutil.which("drawio") is None:
-        raise SystemExit("drawio CLI not found; install draw.io or omit --export-with-drawio")
-    subprocess.run([
-        "drawio",
-        "--export",
-        "--format", "svg",
-        "--svg-theme", "light",
-        "--embed-svg-fonts", "false",
-        "--output", str(svg_path),
-        str(drawio_path),
-    ], check=True)
-    clean_drawio_svg(svg_path)
-
-
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("sequence", type=Path)
     ap.add_argument("svg_output", type=Path)
-    ap.add_argument("--drawio", type=Path, default=None)
-    ap.add_argument("--export-with-drawio", action="store_true")
     ap.add_argument("--title", default="Full adder IMPLY/FALSE schedule")
     args = ap.parse_args()
 
     inputs, outputs, ops, n_cells = parse_sequence(args.sequence)
     args.svg_output.parent.mkdir(parents=True, exist_ok=True)
-    if args.drawio:
-        args.drawio.parent.mkdir(parents=True, exist_ok=True)
-        args.drawio.write_text(render_drawio(args.title, inputs, outputs, ops, n_cells))
-    if args.export_with_drawio:
-        if not args.drawio:
-            raise SystemExit("--export-with-drawio requires --drawio")
-        export_drawio_svg(args.drawio, args.svg_output)
-    else:
-        args.svg_output.write_text(render_svg(args.title, inputs, outputs, ops, n_cells))
+    args.svg_output.write_text(render_svg(args.title, inputs, outputs, ops, n_cells))
 
 
 if __name__ == "__main__":

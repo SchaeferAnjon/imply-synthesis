@@ -28,7 +28,7 @@ from dataclasses import dataclass, field
 # 程序操作用轻量 tuple 表示，打印结果直观且和展示格式一致。
 Op = tuple  # ("FALSE", [cells]) | ("IMPLY", src, dst)
 
-
+# sequencer的输出结构
 @dataclass
 class Program:
     ops: list[Op]

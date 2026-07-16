@@ -63,7 +63,7 @@ src/
 │   ├── compile.py             one-circuit flow: Yosys → ABC → graph → sequence (+ cec checks)
 │   ├── sequencer.py           primitive graph → pulse program (cell reuse, pack_false)
 │   ├── dependency_graph.py    INV/helper expansion + dependency tree / DOT export
-│   ├── render_schedule_svg.py .seq.txt → C64-style operation schedule diagram (SVG / draw.io)
+│   ├── render_schedule_svg.py .seq.txt → C64-style operation schedule diagram (SVG)
 │   ├── verify_netlist.py      mapped netlists vs Python golden models
 │   ├── run_synth.sh           batch Yosys+ABC front end for circuits/*.v
 │   ├── run_iscas85.py         batch compile.py over circuits/ISCAS85, writes results tables
