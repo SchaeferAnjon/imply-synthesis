@@ -20,17 +20,7 @@ each step correct.
 
 ## 2. Pipeline
 
-```mermaid
-flowchart LR
-    V["circuit.v<br/>.blif / .bench"] -->|Yosys| P["pre.blif<br/>generic gates"]
-    P -->|"ABC map<br/>3-script portfolio"| M["mapped.blif<br/>IMPLY + INV"]
-    M -->|"lower INV to<br/>ZERO + IMPLY"| G["primitive<br/>graph"]
-    G -->|Sequencer| S[".seq.txt<br/>FALSE / IMPLY pulses"]
-    P <-. "cec ①" .-> M
-    M <-. "cec ②" .-> G
-    G <-. "cec ③" .-> S
-    S -. "simulation ④" .- S
-```
+![compilation pipeline with verification checkpoints](docs/assets/pipeline.svg)
 
 | stage | tool | what happens |
 |---|---|---|

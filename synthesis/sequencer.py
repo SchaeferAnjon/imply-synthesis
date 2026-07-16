@@ -78,38 +78,60 @@ def fold_zero_imply_inverters(gates: list[tuple], outputs: list[str]) -> list[tu
     在这里折叠成 INV 后，现有的反相缓存与反向别名逻辑就能直接复用；
     最终发出的脉冲程序仍只包含 FALSE 和 IMPLY。
     """
+    # uses 统计每条 net 被当作“输入引脚”消费了多少次。
     uses = Counter()
+    # consumer 记录某条 net 的消费者 gate（仅在 uses==1 时会读取，后写覆盖不影响正确性）。
     consumer = {}
+    # 第一遍扫描：收集“使用次数 + 消费者”元信息。
     for gate in gates:
+        # gate 形如 (门类型, 引脚字典)。
         typ, pins = gate
+        # 遍历当前门的每个引脚连接。
         for pin_name, net_name in pins.items():
+            # 输出引脚 O 不是“被消费的输入”，跳过。
             if pin_name == "O":
                 continue
+            # 该输入网被消费一次。
             uses[net_name] += 1
+            # 记录它被哪个 gate 消费（若多次消费会被覆盖，后续由 uses 过滤）。
             consumer[net_name] = gate
 
+    # folded_zero 记录可安全折叠的 ZERO 输出网名。
     folded_zero: set[str] = set()
+    # 第二遍扫描：只看 ZERO 门，判断是否可与后续 IMPLY 折叠成 INV。
     for typ, pins in gates:
+        # 不是 ZERO 门就不参与这条规则。
         if typ != "ZERO":
             continue
+        # ZERO 门输出的中间网名。
         zero_net = pins["O"]
+        # 如果它是最终输出，或被消费次数不等于 1，都不能折叠。
         if zero_net in outputs or uses[zero_net] != 1:
             continue
+        # 找到这个 zero_net 的唯一消费者 gate。
         use_gate = consumer.get(zero_net)
+        # 防御性检查：没有消费者则跳过。
         if use_gate is None:
             continue
+        # 拆出消费者门类型和引脚。
         use_typ, use_pins = use_gate
+        # 仅当消费者是 IMPLY 且 zero_net 接在 b 口时，模式匹配成功。
         if use_typ == "IMPLY" and use_pins["b"] == zero_net:
             folded_zero.add(zero_net)
 
+    # 第三遍扫描：构造折叠后的新门列表。
     out = []
     for typ, pins in gates:
+        # 被折叠掉的 ZERO 门从输出列表中删除。
         if typ == "ZERO" and pins["O"] in folded_zero:
             continue
+        # 与该 ZERO 配对的 IMPLY 改写为等价 INV。
         if typ == "IMPLY" and pins["b"] in folded_zero:
             out.append(("INV", {"a": pins["a"], "O": pins["O"]}))
         else:
+            # 其他门保持不变。
             out.append((typ, pins))
+    # 返回折叠后的门序列。
     return out
 
 
