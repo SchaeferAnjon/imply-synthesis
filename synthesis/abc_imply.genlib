@@ -1,9 +1,9 @@
-# Adapter library for ABC technology mapping.
+# ABC 技术映射用的适配库。
 #
-# ABC's mapper expects helper cells such as an inverter to exist in the genlib.
-# The project-facing primitive library is imply.genlib (ZERO + IMPLY only).
-# compile.py expands every helper gate from this adapter into a primitive
-# dependency graph before pulse sequencing.
+# ABC 的映射器通常要求 genlib 里存在反相器等辅助单元。
+# 项目面对外部的原语库是 imply.genlib（仅包含 ZERO + IMPLY）。
+# compile.py 会先使用本适配库完成映射，再把辅助门展开回原语依赖图，
+# 最后再进入脉冲时序编排。
 
 GATE IMPLY  1  O=!a+b;     PIN * UNKNOWN 1 999 1 0 1 0
 GATE INV    2  O=!a;       PIN * UNKNOWN 1 999 1 0 1 0

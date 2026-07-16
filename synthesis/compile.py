@@ -1,29 +1,27 @@
 #!/usr/bin/env python3
-"""Compile one combinational circuit to an IMPLY/FALSE sequence.
+"""把一个组合逻辑电路编译为 IMPLY/FALSE 序列。
 
-Usage:
+用法:
     python3 compile.py <circuit.v | .blif | .bench> [-o out.seq.txt]
 
-This is the file I use for demos. It runs the same front end as run_synth.sh,
-but only for one input circuit, and then asks ABC `cec` to check equivalence at
-two points. That avoids pretending that exhaustive simulation scales forever.
+这是演示入口文件。它和 run_synth.sh 走同一套前端流程，
+但只处理一个电路，并在关键阶段调用 ABC 的 cec 做等价检查，
+避免把“穷举仿真”当成可无限扩展的验证方式。
+Combinational Equivalence Checking (CEC) 是 ABC 的一个功能，能在不穷举输入向量的情况下判断两个组合逻辑网表是否等价。
+    输入 --yosys--> pre.blif --ABC 脚本组合--> mapped.blif（适配库网表）
+                        |                               |
+                        +========= cec 形式验证 =========+
+    mapped.blif --ZERO/IMPLY 依赖图--> primitive_logic.blif
+                        |                               |
+                        +========= cec 形式验证 =========+
+    原语图 --Sequencer--> program --SSA 转 BLIF--> prog_{opt,naive}.blif
+                        |                               |
+                        +========= cec 形式验证 =========+
 
-    input --yosys--> pre.blif --ABC portfolio--> mapped.blif (adapter netlist)
-                        |                              |
-                        +======== cec (formal) ========+
-    mapped.blif --ZERO/IMPLY dependency graph--> primitive_logic.blif
-                        |                              |
-                        +======== cec (formal) ========+
-    primitive graph --Sequencer--> program --SSA-to-BLIF--> prog_{opt,naive}.blif
-                        |                              |
-                        +======== cec (formal) ========+
+另外还有一个 CrossbarRow 仿真健全性检查：
+小电路做穷举，大电路用固定随机种子抽样，保证结果可复现。
 
-There is also a small simulator sanity check on CrossbarRow. For small circuits
-it is exhaustive; for wider inputs it uses a fixed random seed so the run is
-repeatable.
-
-Scope: combinational circuits (Project 9). Sequential input is rejected with
-a clear message instead of a crash.
+范围：仅组合逻辑（Project 9）。遇到时序电路会直接给出明确错误信息。
 """
 import argparse
 import random
@@ -37,7 +35,7 @@ sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parent))
 
 from imply_sim import CrossbarRow
-from dependency_graph import build_dependency_graph, expand_to_primitives
+from render_schedule_svg import parse_sequence, render_drawio, render_svg
 from sequencer import Program, Sequencer
 from verify_netlist import eval_netlist, parse_blif
 
@@ -50,7 +48,50 @@ ABC_SCRIPTS = [
 IMPLY_CUBES = ["0- 1", "-1 1"]          # O = !a + b
 
 
+def _safe(name: str) -> str:
+    out = []
+    for ch in name:
+        if ch.isalnum() or ch == "_":
+            out.append(ch)
+        else:
+            out.append("_")
+    return "".join(out)
+
+
+def _zero_name(out: str, index: int) -> str:
+    return f"__zero_{_safe(out)}_{index}"
+
+
+def expand_to_primitives(gates: list[tuple[str, dict[str, str]]]
+                         ) -> list[tuple[str, dict[str, str]]]:
+    """Lower helper gates to the ZERO/IMPLY primitive set used by scheduler."""
+    primitive: list[tuple[str, dict[str, str]]] = []
+    zero_index = 0
+    for typ, pins in gates:
+        if typ in ("IMPLY", "ZERO", "BUF"):
+            primitive.append((typ, dict(pins)))
+        elif typ == "INV":
+            z = _zero_name(pins["O"], zero_index)
+            zero_index += 1
+            primitive.append(("ZERO", {"O": z}))
+            primitive.append(("IMPLY", {"a": pins["a"], "b": z,
+                                         "O": pins["O"]}))
+        elif typ == "ONE":
+            z_src = _zero_name(pins["O"], zero_index)
+            zero_index += 1
+            z_dst = _zero_name(pins["O"], zero_index)
+            zero_index += 1
+            primitive.append(("ZERO", {"O": z_src}))
+            primitive.append(("ZERO", {"O": z_dst}))
+            primitive.append(("IMPLY", {"a": z_src, "b": z_dst,
+                                         "O": pins["O"]}))
+        else:
+            raise ValueError(f"cannot lower helper gate {typ!r} to primitives")
+    return primitive
+
+
 def count_gates(gates: list[tuple], gate_type: str) -> int:
+    """统计网表中某一类门的数量。"""
     count = 0
     for typ, _ in gates:
         if typ == gate_type:
@@ -59,12 +100,12 @@ def count_gates(gates: list[tuple], gate_type: str) -> int:
 
 
 def mapping_cost(gates: list[tuple]) -> int:
-    # This is only an estimate before sequencing. INV costs 2 because it later
-    # becomes FALSE + IMPLY.
+    # 这是编排前的估算成本。INV 记作 2，因为后续会降解成 FALSE + IMPLY。
     return count_gates(gates, "IMPLY") + 2 * count_gates(gates, "INV")
 
 
 def run(cmd: list[str], cwd: Path) -> str:
+    """执行外部命令；失败时抛出带输出信息的异常。"""
     r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
     if r.returncode != 0:
         raise RuntimeError(f"{cmd[0]} failed:\n{r.stderr or r.stdout}")
@@ -72,7 +113,7 @@ def run(cmd: list[str], cwd: Path) -> str:
 
 
 def to_pre_blif(src: Path, work: Path) -> Path:
-    """Convert the input file to pre.blif, before IMPLY technology mapping."""
+    """把输入文件统一转成 pre.blif（IMPLY 技术映射前）。"""
     pre = work / "pre.blif"
     if src.suffix == ".v":
         run(["yosys", "-q", "-p",
@@ -94,7 +135,7 @@ def to_pre_blif(src: Path, work: Path) -> Path:
 
 
 def abc_portfolio(work: Path) -> Path:
-    """pre.blif -> mapped.blif using the best of 3 ABC scripts."""
+    """用 3 套 ABC 脚本做小型组合搜索，选出最优 mapped.blif。"""
     best_cost, best = None, None
     for i, script in enumerate(ABC_SCRIPTS):
         out = work / f"mapped_{i}.blif"
@@ -112,7 +153,7 @@ def abc_portfolio(work: Path) -> Path:
 
 def gates_to_blif(model: str, inputs: list[str], outputs: list[str],
                   gates: list[tuple]) -> str:
-    """Mapped netlist -> plain BLIF, so ABC can compare it with `cec`."""
+    """把网表门列表写成普通 BLIF，供 ABC cec 做等价比较。"""
     L = [f".model {model}", ".inputs " + " ".join(inputs),
          ".outputs " + " ".join(outputs)]
     for typ, p in gates:
@@ -133,11 +174,10 @@ def gates_to_blif(model: str, inputs: list[str], outputs: list[str],
 
 def program_to_blif(model: str, prog: Program, inputs: list[str],
                     outputs: list[str]) -> str:
-    """IMPLY/FALSE program -> SSA-style BLIF.
+    """把 IMPLY/FALSE 程序转成 SSA 风格 BLIF。
 
-    The SSA part matters: one physical cell can be written many times, but in a
-    logic netlist every version needs a fresh name. Otherwise `cec` would compare
-    the wrong circuit.
+    这里 SSA 很关键：同一个物理 cell 可能被多次覆盖写入。
+    在逻辑网表里，每次新值都要用新名字，否则 cec 会比较错对象。
     """
     cur = {}
     ver = {}
@@ -148,6 +188,7 @@ def program_to_blif(model: str, prog: Program, inputs: list[str],
          ".outputs " + " ".join(outputs)]
 
     def bump(c: int) -> str:
+        """给 cell c 生成新 SSA 版本名并更新当前绑定。"""
         ver[c] = ver.get(c, 0) + 1
         cur[c] = f"c{c}v{ver[c]}"
         return cur[c]
@@ -155,7 +196,7 @@ def program_to_blif(model: str, prog: Program, inputs: list[str],
     for op in prog.ops:
         if op[0] == "FALSE":
             for c in op[1]:
-                L.append(f".names {bump(c)}")        # no cubes means const 0
+                L.append(f".names {bump(c)}")        # 无 cube 表示常量 0
         else:
             _, s, d = op
             a, b = cur[s], cur[d]
@@ -166,6 +207,7 @@ def program_to_blif(model: str, prog: Program, inputs: list[str],
 
 
 def cec(work: Path, f1: str, f2: str) -> bool:
+    """调用 ABC cec 做等价检查，返回是否等价。"""
     out = run(["yosys-abc", "-c", f"cec {f1} {f2}"], cwd=work)
     if "Networks are equivalent" in out:
         return True
@@ -175,7 +217,7 @@ def cec(work: Path, f1: str, f2: str) -> bool:
 
 
 def run_program(prog: Program, env: dict[str, int]) -> tuple[dict[str, int], int]:
-    """Execute a generated IMPLY/FALSE program on the logic-level simulator."""
+    """在逻辑层模拟器上执行生成的 IMPLY/FALSE 程序。"""
     cells = [0] * prog.n_cells
     for net, c in prog.in_cell.items():
         cells[c] = env[net]
@@ -193,9 +235,12 @@ def run_program(prog: Program, env: dict[str, int]) -> tuple[dict[str, int], int
 
 def sim_sanity(prog: Program, inputs: list[str], outputs: list[str],
                gates: list[tuple]) -> tuple[bool, int]:
+    """用仿真交叉检查程序输出与网表输出是否一致。"""
     if len(inputs) <= 12:
+        # 输入位数不大时直接穷举。
         vectors = list(product((0, 1), repeat=len(inputs)))
     else:
+        # 输入位数大时固定种子随机采样，保证可复现。
         rng = random.Random(20260611)
         vectors = []
         for _ in range(1000):
@@ -215,7 +260,25 @@ def sim_sanity(prog: Program, inputs: list[str], outputs: list[str],
     return True, len(vectors)
 
 
+def write_schedule_graphs(seq_path: Path) -> tuple[Path, Path]:
+    """基于 .seq.txt 自动生成调度图（drawio + svg）。"""
+    seq_name = seq_path.name
+    if seq_name.endswith(".seq.txt"):
+        base = seq_name[:-8]
+    else:
+        base = seq_path.stem
+    drawio_path = seq_path.parent / f"{base}_schedule.drawio"
+    svg_path = seq_path.parent / f"{base}_schedule.svg"
+
+    inputs, outputs, ops, n_cells = parse_sequence(seq_path)
+    title = f"{base} IMPLY/FALSE schedule"
+    drawio_path.write_text(render_drawio(title, inputs, outputs, ops, n_cells))
+    svg_path.write_text(render_svg(title, inputs, outputs, ops, n_cells))
+    return drawio_path, svg_path
+
+
 def main() -> None:
+    """主流程：映射、展开、调度、验证、导出序列与中间产物。"""
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("circuit", type=Path)
     ap.add_argument("-o", "--out", type=Path, default=None,
@@ -233,7 +296,7 @@ def main() -> None:
     name = src.stem
     work = HERE / "compiled" / name
     work.mkdir(parents=True, exist_ok=True)
-    (work / src.name).write_text(src.read_text())
+    (work / src.name).write_text(src.read_text())       
     (work / "imply.genlib").write_text((HERE / "imply.genlib").read_text())
     (work / "abc_imply.genlib").write_text((HERE / "abc_imply.genlib").read_text())
 
@@ -241,8 +304,6 @@ def main() -> None:
     mapped = abc_portfolio(work)
     inputs, outputs, gates = parse_blif(mapped)
     primitive_gates = expand_to_primitives(gates)
-    adapter_graph = build_dependency_graph(inputs, outputs, gates)
-    primitive_graph = build_dependency_graph(inputs, outputs, primitive_gates)
     census = {}
     for gate_type in ("IMPLY", "INV", "BUF", "ZERO", "ONE"):
         census[gate_type] = count_gates(gates, gate_type)
@@ -262,15 +323,11 @@ def main() -> None:
         gates_to_blif(name, inputs, outputs, gates))
     (work / "primitive_logic.blif").write_text(
         gates_to_blif(name, inputs, outputs, primitive_gates))
-    (work / "dependency_graph.dot").write_text(adapter_graph.to_dot())
-    (work / "dependency_tree.txt").write_text(adapter_graph.to_tree_text() + "\n")
-    (work / "primitive_dependency_graph.dot").write_text(primitive_graph.to_dot())
-    (work / "primitive_dependency_tree.txt").write_text(
-        primitive_graph.to_tree_text() + "\n")
     for m, p in progs.items():
         (work / f"prog_{m}.blif").write_text(
             program_to_blif(name, p, inputs, outputs))
 
+    # 多个验证关口：前端映射、原语展开、时序程序都分别做形式等价检查。
     v = {
         "abc-mapping == source (formal cec)":
             cec(work, "pre.blif", "mapped_logic.blif"),
@@ -298,6 +355,7 @@ def main() -> None:
         lines.append(line)
         step_no += 1
     seq_path.write_text("\n".join(lines) + "\n")
+    drawio_path, svg_path = write_schedule_graphs(seq_path)
 
     print(f"circuit : {name}  ({len(inputs)} inputs, {len(outputs)} outputs)")
     netlist_line = f"abc map : {census['IMPLY']} IMPLY + {census['INV']} INV"
@@ -320,6 +378,8 @@ def main() -> None:
             mark = "  FAIL"
         print(f"{mark}  {k}")
     print(f"sequence: {seq_path}")
+    print(f"schedule drawio: {drawio_path}")
+    print(f"schedule svg   : {svg_path}")
     all_ok = True
     for ok in v.values():
         if not ok:

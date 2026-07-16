@@ -1,12 +1,12 @@
-# Project-facing primitive library.
+# 面向项目的原语库。
 #
-# IMPLY(a, b) = !a + b   (material implication, the only compute primitive)
-# ZERO is the logic-level CONST0 source. In the emitted pulse sequence, each
-# needed zero cell is created by a FALSE reset.
+# IMPLY(a, b) = !a + b（材料蕴含，也是唯一的计算原语）
+# ZERO 是逻辑层面的 CONST0 常量源。在导出的脉冲序列中，
+# 每个所需的 zero 单元都通过一次 FALSE reset 创建。
 #
-# ABC's mapper currently needs helper cells such as INV, so compile.py uses
-# abc_imply.genlib as an adapter and then expands all helpers back to this
-# ZERO + IMPLY primitive graph before sequencing.
+# ABC 的映射器目前仍需要 INV 等辅助单元，所以 compile.py 会先使用
+# abc_imply.genlib 作为适配层，再在时序编排前把所有辅助单元展开回
+# 仅由 ZERO + IMPLY 构成的原语图。
 
 GATE IMPLY  1  O=!a+b;     PIN * UNKNOWN 1 999 1 0 1 0
 GATE ZERO   0  O=CONST0;

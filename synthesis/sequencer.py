@@ -1,41 +1,29 @@
-"""Lower an IMPLY/INV netlist to an executable IMPLY/FALSE program.
+"""把 IMPLY/INV 网表降解为可执行的 IMPLY/FALSE 程序。
 
-Input : parsed BLIF netlist (IMPLY / INV / BUF / ZERO / ONE gates, from ABC)
-Output: Program = ordered FALSE/IMPLY ops on crossbar-row cells
+输入 : 解析后的 BLIF 网表（来自 ABC，可能包含 IMPLY/INV/BUF/ZERO/ONE）
+输出 : Program，即在 crossbar 行上按顺序执行的 FALSE/IMPLY 操作
 
-Hardware constraints handled here:
-- IMPLY(src, dst) overwrites dst. A value still needed later must never sit
-  in a dst cell (dependency-aware targeting).
-- NOT x is not a primitive: INV lowers to FALSE(w); IMPLY(x, w) -> w = !x.
-- BUF (ABC `.barbuf` passthrough, for example an output collapsed to an input) is a
-  zero-cost cell alias, with no pulse emitted.
+这里处理的硬件约束：
+- IMPLY(src, dst) 会覆盖 dst，因此还要用的值不能放在即将被覆盖的 dst。
+- NOT x 不是硬件原语：INV 会降为 FALSE(w) + IMPLY(x, w)，得到 w = !x。
+- BUF（如 ABC 的 `.barbuf` 透传）是零代价别名，不产生脉冲。
 
-Optimizations (optimize=True):
-- negation cache: !n computed once is remembered and reused (Fabian's
-  "store the inverted value" advice); INV also registers the reverse alias
-  (a == !z when z = !a), so a later !z is free too.
-- dead-target reuse: IMPLY gate writes straight into its b-operand's cell
-  when b is dead afterwards (1 step instead of up to 5).
-- cell reclamation: cells whose values are dead return to a free list.
-- parallel-FALSE packing: every reset moves freely between the ops touching
-  its cell, so pulse times are chosen by minimum interval piercing — the
-  fewest FALSE pulses possible for the emitted IMPLY order (pack_false).
-- unlimited-cells mode: never reuse a cell, so every reset packs into one
-  upfront FALSE pulse (steps = #IMPLY + 1) at the cost of a wider row.
-- portfolio scheduling: three gate orders (topological, greedy-by-step-cost,
-  greedy-by-cell-pressure) are tried and the best program kept
-  (objective="steps" -> min (steps, cells); "cells" flips the key, useful to
-  squeeze a circuit into a fixed-size SPICE template).
+优化项（optimize=True）：
+- 反相缓存：!n 算过一次后缓存复用；INV 还会登记反向别名。
+- 死目标复用：当 b 后续不再使用时，IMPLY 直接原地写 b 的 cell（1 步）。
+- cell 回收：值死亡后把 cell 放回 free 列表。
+- 并行 FALSE 打包：在合法区间内移动 reset，最小化 FALSE 脉冲数。
+- unlimited-cells：不复用 cell，使 reset 可集中到前置一次 FALSE。
+- 调度组合搜索：尝试三种门顺序，保留目标函数最优程序。
 
-naive mode (optimize=False) = plain topological order, none of the above;
-this is the baseline for sub-task (iii).
+naive 模式（optimize=False）只做拓扑序，不启用上述优化，
+作为对照基线。
 """
 from bisect import bisect_left
 from collections import Counter
 from dataclasses import dataclass, field
 
-# Program operations stay as small tuples. It is less fancy than a class, but
-# the printed sequence is exactly what I want to show in the presentation.
+# 程序操作用轻量 tuple 表示，打印结果直观且和展示格式一致。
 Op = tuple  # ("FALSE", [cells]) | ("IMPLY", src, dst)
 
 
@@ -48,12 +36,12 @@ class Program:
 
     @property
     def steps(self) -> int:
-        """Pulse count for this program."""
+        """程序总脉冲数。"""
         return len(self.ops)
 
 
 def topo_order(inputs: list[str], gates: list[tuple]) -> list[tuple]:
-    """Order gates so every gate's inputs are already computed."""
+    """按拓扑顺序排序门，保证每个门执行时输入已就绪。"""
     known = set(inputs)
     pending, ordered = list(gates), []
     while pending:
@@ -79,17 +67,16 @@ def topo_order(inputs: list[str], gates: list[tuple]) -> list[tuple]:
 
 
 def fold_zero_imply_inverters(gates: list[tuple], outputs: list[str]) -> list[tuple]:
-    """Recognize primitive ZERO+IMPLY inversions for scheduling.
+    """识别 ZERO+IMPLY 形成的反相模式，便于调度阶段优化。
 
-    The project-facing graph still uses only ZERO and IMPLY. For scheduling,
-    however, the shape
+    项目对外原语图仍然只有 ZERO 和 IMPLY，但在调度视角下，
+    下面这种结构本质就是 INV：
 
         ZERO z
         IMPLY x, z -> y
 
-    is exactly an inverter. Folding the shape here lets the existing negation
-    cache and reverse-alias logic see it, while the emitted pulse program is
-    still only FALSE and IMPLY.
+    在这里折叠成 INV 后，现有的反相缓存与反向别名逻辑就能直接复用；
+    最终发出的脉冲程序仍只包含 FALSE 和 IMPLY。
     """
     uses = Counter()
     consumer = {}
@@ -128,24 +115,24 @@ def fold_zero_imply_inverters(gates: list[tuple], outputs: list[str]) -> list[tu
 
 @dataclass
 class _Core:
-    """One emission pass over the netlist with a chosen gate-order strategy."""
+    """用指定门顺序策略对网表执行一次完整发射（生成程序）。"""
     optimize: bool
     scheduler: str = "topo"            # "topo" | "greedy-steps" | "greedy-cells"
-    preserve_inputs: bool = False      # keep every input cell readable at the end
-    reuse_cells: bool = True           # False: fresh cell per reset, 1 FALSE pulse
+    preserve_inputs: bool = False      # True 时保证输入 cell 结尾仍可读
+    reuse_cells: bool = True           # False 时每次 reset 用新 cell
     ops: list[Op] = field(default_factory=list)
-    val: dict[str, int] = field(default_factory=dict)   # net -> cell holding net
-    neg: dict[str, int] = field(default_factory=dict)   # net -> cell holding !net
+    val: dict[str, int] = field(default_factory=dict)   # net -> 保存该值的 cell
+    neg: dict[str, int] = field(default_factory=dict)   # net -> 保存 !net 的 cell
     claims: dict[int, set] = field(default_factory=dict)  # cell -> {(kind, net)}
-    free: list[int] = field(default_factory=list)       # reusable cells, LIFO
-    n_cells: int = 0                                   # next fresh cell id
+    free: list[int] = field(default_factory=list)       # 可复用 cell（LIFO）
+    n_cells: int = 0                                   # 下一个新 cell 编号
     remaining: Counter = field(default_factory=Counter)
     protected: set = field(default_factory=set)
 
-    # ------------------------------------------------------------- plumbing
+    # ------------------------------------------------------------- 基础设施
     def alloc(self) -> int:
-        # In optimized mode, prefer a dead cell over growing the row. Small
-        # reminder to myself: pop() gives a cell id, not the old value in it.
+        """分配一个可用 cell，优先复用空闲 cell。"""
+        # 优化模式下优先复用已死亡 cell，避免盲目扩展行宽。
         if self.optimize and self.reuse_cells and self.free:
             return self.free.pop()
         c = self.n_cells
@@ -153,21 +140,21 @@ class _Core:
         return c
 
     def fresh_false(self) -> int:
-        """Allocate a cell and reset it to logic 0."""
+        """分配一个 cell 并发出 FALSE，把它清零。"""
         c = self.alloc()
         self.claims[c] = set()
         self.ops.append(("FALSE", [c]))
         return c
 
     def emit_imply(self, src: int, dst: int) -> None:
+        """发出一条 IMPLY(src, dst) 脉冲操作。"""
         if src == dst:
-            # IMPLY(x, x) always gives 1, so it is almost certainly a bad alias
-            # in my cell bookkeeping, not a useful pulse.
+            # IMPLY(x, x) 恒为 1，这通常是 cell 记账错误，不是有效脉冲。
             raise ValueError(f"IMPLY src==dst cell {src} (cell alias bug?)")
         self.ops.append(("IMPLY", src, dst))
 
     def live_vals(self, cell: int, exclude: str | None = None) -> list[str]:
-        """Return still-needed plain values stored in a cell."""
+        """返回某个 cell 中仍有后续用途的普通值。"""
         result = []
         for k, n in self.claims.get(cell, ()):
             if k != "val":
@@ -179,7 +166,7 @@ class _Core:
         return result
 
     def live_negs(self, cell: int) -> list[str]:
-        """Return still-useful cached inverse values stored in a cell."""
+        """返回某个 cell 中仍有后续用途的反相缓存值。"""
         result = []
         for k, n in self.claims.get(cell, ()):
             if k != "neg":
@@ -189,14 +176,14 @@ class _Core:
         return result
 
     def dec(self, net: str) -> None:
+        """消费一次 net 的剩余使用计数，并尝试回收其所在 cell。"""
         self.remaining[net] -= 1
         cell = self.val.get(net)
         if cell is not None:
             self.maybe_reclaim(cell)
 
     def maybe_reclaim(self, cell: int) -> None:
-        # A cell can go back to the free list only after every useful plain
-        # value and useful cached inverse in it has died.
+        # 只有当 cell 内所有“还会用到”的值都死亡后，才能回收到 free。
         if (not self.optimize or cell in self.free or self.live_vals(cell)
                 or self.live_negs(cell)):
             return
@@ -209,7 +196,7 @@ class _Core:
         self.free.append(cell)
 
     def retarget(self, cell: int, out: str) -> None:
-        """Record that cell now holds out after a destructive write."""
+        """记录破坏性写入后：该 cell 现在保存 out。"""
         for k, n in list(self.claims.get(cell, ())):
             if k == "val" and self.val.get(n) == cell:
                 del self.val[n]
@@ -219,7 +206,7 @@ class _Core:
         self.val[out] = cell
 
     def ensure_neg(self, net: str) -> int:
-        """Return a cell holding !net, creating it if needed."""
+        """确保并返回保存 !net 的 cell（必要时新建）。"""
         if self.optimize and net in self.neg:
             return self.neg[net]
         w = self.fresh_false()
@@ -229,10 +216,10 @@ class _Core:
             self.claims[w].add(("neg", net))
         return w
 
-    # ---------------------------------------------------------------- gates
+    # ---------------------------------------------------------------- 门处理
     def destructible(self, b: str) -> bool:
-        # Safe in-place IMPLY case: b is not an output, this is its last use,
-        # and no other still-live value is sharing that cell.
+        """判断 b 是否可作为 IMPLY 目标被原地覆盖。"""
+        # 安全原地写条件：b 非受保护输出、这是 b 最后一次使用、且 cell 不共享活值。
         if not self.optimize:
             return False
         if b in self.protected:
@@ -244,10 +231,11 @@ class _Core:
         return True
 
     def do_inv(self, pins: dict) -> None:
+        """发射 INV：优先复用反相缓存，否则用 FALSE+IMPLY 构造。"""
         a, z = pins["a"], pins["O"]
-        if self.optimize and a in self.neg:        # cached inverse: no pulse
+        if self.optimize and a in self.neg:        # 命中反相缓存：不新增脉冲
             c = self.neg[a]
-        else:                                      # FALSE + IMPLY: 2 steps
+        else:                                      # FALSE + IMPLY：2 步
             c = self.fresh_false()
             self.emit_imply(self.val[a], c)
             if self.optimize:
@@ -255,7 +243,7 @@ class _Core:
                 self.claims[c].add(("neg", a))
         self.claims[c].add(("val", z))
         self.val[z] = c
-        if self.optimize:                  # reverse alias: if z = !a, then a = !z
+        if self.optimize:                  # 反向别名：若 z = !a，则 a = !z
             ca = self.val.get(a)
             if ca is not None and z not in self.neg:
                 self.neg[z] = ca
@@ -263,17 +251,18 @@ class _Core:
         self.dec(a)
 
     def do_imply(self, pins: dict) -> None:
+        """发射 IMPLY：优先原地覆盖，否则走构造路径。"""
         a, b, z = pins["a"], pins["b"], pins["O"]
         assert a != b, "degenerate IMPLY(x,x) not expected from ABC"
-        if self.destructible(b):                   # 1 step, in-place
+        if self.destructible(b):                   # 1 步，原地写
             cb = self.val[b]
             self.emit_imply(self.val[a], cb)
             self.retarget(cb, z)
-        else:                                      # via !b -> !a (1-5 steps)
+        else:                                      # 通过 !b 与 !a 构造（1-5 步）
             nb = self.ensure_neg(b)
             t = None
             if self.optimize and a in self.neg and not self.live_vals(self.neg[a]):
-                t = self.neg[a]                     # consume cached !a as target
+                t = self.neg[a]                     # 消耗缓存 !a 作为目标 cell
                 del self.neg[a]
             if t is None:
                 t = self.fresh_false()
@@ -284,7 +273,7 @@ class _Core:
         self.dec(b)
 
     def do_buf(self, pins: dict) -> None:
-        """ABC passthrough: just give the same cell another net name."""
+        """BUF 透传：给同一个 cell 绑定一个新网名，不发脉冲。"""
         a, z = pins["a"], pins["O"]
         c = self.val[a]
         self.claims[c].add(("val", z))
@@ -292,8 +281,9 @@ class _Core:
         self.dec(a)
 
     def do_const(self, typ: str, pins: dict) -> None:
+        """处理常量门：ZERO 直接清零；ONE 由清零后再构造得到。"""
         z = pins["O"]
-        c = self.fresh_false()                     # ZERO is just a reset cell.
+        c = self.fresh_false()                     # ZERO 本质就是拿到一个已清零 cell。
         if typ == "ONE":
             zc = self.fresh_false()
             self.emit_imply(zc, c)                  # c = !0 | 0 = 1
@@ -303,6 +293,7 @@ class _Core:
         self.val[z] = c
 
     def emit_gate(self, typ: str, pins: dict) -> None:
+        """根据门类型分发到对应发射逻辑。"""
         if typ == "INV":
             self.do_inv(pins)
         elif typ == "IMPLY":
@@ -314,9 +305,9 @@ class _Core:
         else:
             raise ValueError(f"unexpected gate {typ}")
 
-    # ------------------------------------------------------------ scheduling
+    # ------------------------------------------------------------ 调度
     def score(self, typ: str, pins: dict) -> int:
-        """Greedy score for the current machine state."""
+        """当前机器状态下的贪心评分函数。"""
         dying = 0
         for pin_name, net_name in pins.items():
             if pin_name != "O" and self.remaining[net_name] == 1:
@@ -346,15 +337,14 @@ class _Core:
 
     def run(self, inputs: list[str], outputs: list[str],
             gates: list[tuple]) -> Program:
+        """执行一次调度并返回 Program。"""
         if self.optimize:
             gates = fold_zero_imply_inverters(gates, outputs)
         self.protected = set(outputs)
         if self.preserve_inputs:
-            # Protected inputs are never destructible and never reclaimed,
-            # so their cells still hold the original operands at the end.
+            # 保护输入：不可原地覆盖、不可回收，保证末态仍保留原输入值。
             self.protected |= set(inputs)
-        # remaining tells us whether overwriting a net is safe. It is the small
-        # bit of bookkeeping that keeps IMPLY's destructive target sane.
+        # remaining 用于判断覆盖写是否安全，避免 IMPLY 破坏仍需使用的值。
         for _, pins in gates:
             for k, v in pins.items():
                 if k != "O":
@@ -407,10 +397,11 @@ class _Core:
 
 
 class Sequencer:
-    """Public API wrapper around the scheduling portfolio."""
+    """面向外部的调度 API：封装多策略候选并择优。"""
 
     def __init__(self, optimize: bool, objective: str = "steps",
                  preserve_inputs: bool = False, unlimited_cells: bool = False):
+        """配置调度器参数。"""
         self.optimize = optimize
         self.objective = objective
         self.preserve_inputs = preserve_inputs
@@ -418,6 +409,7 @@ class Sequencer:
 
     def run(self, inputs: list[str], outputs: list[str],
             gates: list[tuple]) -> Program:
+        """运行多策略组合搜索并按目标函数选择最佳程序。"""
         if not self.optimize:
             return _Core(False).run(inputs, outputs, gates)
         candidates = []
@@ -441,22 +433,18 @@ class Sequencer:
 
 
 def pack_false(ops: list[Op]) -> list[Op]:
-    """Repack FALSE resets into the fewest pulses for the given IMPLY order.
+    """在给定 IMPLY 顺序下，把 FALSE reset 重新打包为最少脉冲。
 
-    A reset may fire anywhere after the previous op touching its cell and
-    before the next one, so each requested reset is an interval of legal
-    gaps between IMPLYs. Minimizing the pulse count is then the classic
-    minimum piercing-points problem, which the greedy sweep over earliest
-    right endpoints solves optimally. Unlike merge_false, a reset can also
-    move *later* to share a pulse with resets that come after it. Each
-    chosen pulse is finally placed at the earliest gap all of its members
-    allow, so resets still happen as early as possible.
+    一个 reset 只要位于“上次触碰该 cell 之后、下次触碰之前”都合法，
+    因此可转化为 IMPLY 间隙上的区间刺点最小化问题。
+    这里使用按最早右端点的贪心扫描得到最优脉冲数；
+    同时允许 reset 适度后移以与后续 reset 合并，最后再放回最早可行间隙。
     """
     implies = [op for op in ops if op[0] != "FALSE"]
     n = len(implies)
     intervals: list[list] = []           # [lo_gap, hi_gap, cell]
-    pending: dict[int, list] = {}        # cell -> intervals awaiting hi
-    last_gap: dict[int, int] = {}        # cell -> earliest gap after last touch
+    pending: dict[int, list] = {}        # cell -> 等待确定 hi 的区间
+    last_gap: dict[int, int] = {}        # cell -> 上次触碰后最早合法 gap
     seen = 0
     for op in ops:
         if op[0] == "FALSE":
@@ -467,16 +455,15 @@ def pack_false(ops: list[Op]) -> list[Op]:
         else:
             for c in {op[1], op[2]}:
                 for iv in pending.pop(c, ()):
-                    iv[1] = seen         # must fire before this IMPLY
-                last_gap[c] = seen + 1   # later resets must fire after it
+                    iv[1] = seen         # 必须在当前 IMPLY 前触发
+                last_gap[c] = seen + 1   # 后续 reset 只能在当前 IMPLY 后
             seen += 1
 
     intervals.sort(key=lambda iv: iv[1])
     groups: list[list] = []              # [placement_gap, cover_point, cells]
-    points: list[int] = []               # cover points, ascending
+    points: list[int] = []               # 升序 cover points
     for lo, hi, c in intervals:
-        # A new pulse is needed only when no existing point covers [lo, hi];
-        # otherwise join the earliest compatible pulse so resets stay early.
+        # 仅当没有现有点覆盖 [lo, hi] 时才新建脉冲；否则并入最早兼容脉冲。
         k = bisect_left(points, lo)
         if k == len(groups):
             groups.append([lo, hi, {c}])
