@@ -281,15 +281,12 @@ def main() -> None:
     ap.add_argument("circuit", type=Path)
     ap.add_argument("-o", "--out", type=Path, default=None,
                     help="sequence output file (default: <work>/<name>.seq.txt)")
-    ap.add_argument("--preserve-inputs", action=argparse.BooleanOptionalAction,
-                    default=True,
+    ap.add_argument("--preserve-inputs", action="store_true",
                     help="keep every input cell readable at the end of the "
-                         "optimized sequence (default on; use "
-                         "--no-preserve-inputs to allow overwriting inputs)")
-    ap.add_argument("--max-cells", type=int, default=None,
-                    help="row-width budget: allocate fresh cells up to this "
-                         "many, then reuse freed cells (default: no budget = "
-                         "fewest steps; 0 = reuse aggressively = fewest cells)")
+                         "optimized sequence (inputs are never overwritten)")
+    ap.add_argument("--unlimited-cells", action="store_true",
+                    help="never reuse a cell: all resets pack into a single "
+                         "upfront FALSE pulse (fewest steps, widest row)")
     args = ap.parse_args()
     src = args.circuit.resolve()
     if not src.exists():
@@ -317,7 +314,8 @@ def main() -> None:
     progs["opt"] = Sequencer(
         optimize=True,
         preserve_inputs=args.preserve_inputs,
-        max_cells=args.max_cells).run(inputs, outputs, primitive_gates)
+        unlimited_cells=args.unlimited_cells).run(inputs, outputs,
+                                                  primitive_gates)
 
     (work / "mapped_logic.blif").write_text(
         gates_to_blif(name, inputs, outputs, gates))
