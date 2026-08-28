@@ -8,6 +8,9 @@ formally verified pulse program for one memristive crossbar row.**
 > full adder: **20 steps / 7 cells** · c17: **15 steps / 8 cells** ·
 > all **11 / 11** ISCAS'85 circuits compile and verify end-to-end.
 
+**Final report (PDF, submitted 2026-08-20):**
+[docs/MCC_Project9_IMPLY_Report_Zonghan_Jia.pdf](docs/MCC_Project9_IMPLY_Report_Zonghan_Jia.pdf)
+
 ## 1. The idea in one paragraph
 
 A memristive crossbar can compute inside the memory array with just two
@@ -138,7 +141,7 @@ src/
 │   ├── tests/                 pytest suite (sequencer edge cases, renderer, runner)
 │   └── compiled/              generated per-circuit artifacts (gitignored)
 ├── output/                    generated result tables (gitignored)
-└── docs/                      worked examples, reports, curated figures → docs/README.md
+└── docs/                      worked examples, reports, final report PDF → docs/README.md
 ```
 
 Generated files never land in `docs/`: `compile.py` writes to

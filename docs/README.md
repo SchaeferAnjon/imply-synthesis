@@ -24,6 +24,7 @@ keep into `docs/assets/<circuit>/` as a deliberate publishing step.
 
 | report | what it covers |
 |---|---|
+| [MCC_Project9_IMPLY_Report_Zonghan_Jia.pdf](MCC_Project9_IMPLY_Report_Zonghan_Jia.pdf) | **the final project report** as submitted to the supervisor (2026-08-20) |
 | [document/sequencing_optimization_report.md](document/sequencing_optimization_report.md) | the 26 → 20 step full_adder scheduling improvement |
 | [document/false_packing_report.md](document/false_packing_report.md) | optimal FALSE packing (`pack_false`) and the `--preserve-inputs` / `--unlimited-cells` scheduling corners |
 | [document/comparison_simpler.md](document/comparison_simpler.md) | comparison against SIMPLER MAGIC (TCAD'20) on ISCAS'85 |
@@ -53,6 +54,7 @@ dumping ground for every regeneration.
 ```text
 docs/
 ├── README.md                  ← this index
+├── MCC_Project9_IMPLY_Report_Zonghan_Jia.pdf   the final report (PDF)
 ├── full_adder/README.md       worked example: full adder, stage by stage
 ├── c17/README.md              worked example: ISCAS'85 c17
 ├── assets/
